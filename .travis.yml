@@ -17,4 +17,4 @@ matrix:
     - php: nightly
 
 script:
-  - php -d error_reporting=32767 -l install.php
+  - php -d error_reporting=32767 -l *.php
