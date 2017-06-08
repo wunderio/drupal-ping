@@ -1,0 +1,22 @@
+{
+  "name": "wunderio/drupal-ping",
+  "type": "web-dropin",
+  "license": "MIT",
+  "description": "Drupal health check endpoint for load balancers",
+  "homepage": "https://github.com/wunderio/drupal-ping",
+  "authors": [
+    {
+      "name": "Janne Koponen",
+      "email": "janne.koponen@wunder.io",
+      "homepage": "https://github.com/tharna",
+      "role": "Developer"
+    }
+  ],
+  "keywords": [
+    "drupal","ping","healthcheck"
+  ],
+  "require": {
+    "drupal/core": "~8.0",
+    "koodimonni/composer-dropin-installer": ">=1.0.1"
+  }
+}
