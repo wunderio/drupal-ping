@@ -4,12 +4,14 @@
 This script can be used for Drupal8 healthchecks.
 
 ## Installation
-You can install this by adding this into your composer.json:
+Install the composer package as usual with 
+```
+composer require wunderio/drupal-ping:^1.0
+```
+
+Then add this to your composer.json:
 ```json
 {
-    "require": {
-        "wunderio/drupal-ping": "^1.0"
-    },
     "extra": {
         "dropin-paths": {
             "web/": ["type:web-dropin"]
