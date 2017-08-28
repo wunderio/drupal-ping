@@ -38,14 +38,25 @@ if (!count($result)) {
 }
 // Check that all memcache instances are running on this server.
 if (isset($settings['memcache']['servers'])) {
-  foreach ($settings['memcache']['servers'] as $address => $bin) {
-    list($ip, $port) = explode(':', $address);
-    if (!memcache_connect($ip, $port)) {
-      $fails[] = 'Memcache bin <em>' . $bin . '</em> at address ' . $address . ' is not available.';
+  if (class_exists('Memcache')) {
+    foreach ($settings['memcache']['servers'] as $address => $bin) {
+      list($ip, $port) = explode(':', $address);
+      if (!memcache_connect($ip, $port)) {
+        $fails[] = 'Memcache bin <em>' . $bin . '</em> at address ' . $address . ' is not available.';
+      }
     }
-    if(count($fails) >= count($settings['memcache']['servers'])) {
-      $errors += $fails;
+  }
+  elseif (class_exists('Memcached')) {
+    $mc = new Memcached();
+    foreach ($settings['memcache']['servers'] as $address => $bin) {
+      list($ip, $port) = explode(':', $address);
+      if (!$mc->addServer($ip, $port)) {
+        $fails[] = 'Memcache bin <em>' . $bin . '</em> at address ' . $address . ' is not available.';
+      }
     }
+  }
+  if(count($fails) >= count($settings['memcache']['servers'])) {
+    $errors += $fails;
   }
 }
 // Check that Redis instace is running correctly using PhpRedis
