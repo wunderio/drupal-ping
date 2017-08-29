@@ -38,6 +38,7 @@ if (!count($result)) {
 }
 // Check that all memcache instances are running on this server.
 if (isset($settings['memcache']['servers'])) {
+  $fails = array();
   if (class_exists('Memcache')) {
     foreach ($settings['memcache']['servers'] as $address => $bin) {
       list($ip, $port) = explode(':', $address);
