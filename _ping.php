@@ -106,6 +106,7 @@ if (isset($settings['redis.connection']['host'])) {
 if ($errors) {
   $errors[] = 'Errors on this server will cause it to be removed from the load balancer.';
   header('HTTP/1.1 500 Internal Server Error');
+  syslog(LOG_ERR|LOG_LOCAL6, implode("\n", $errors));
   print implode("<br />\n", $errors);
 }
 else {
