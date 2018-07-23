@@ -4,12 +4,7 @@
 This script can be used for Drupal8 healthchecks.
 
 ## Installation
-Install the composer package as usual with 
-```
-composer require wunderio/drupal-ping:^1.0
-```
-
-Then add this to your composer.json:
+Add this to your composer.json:
 ```json
 {
     "extra": {
@@ -19,6 +14,12 @@ Then add this to your composer.json:
     }
 }
 ```
+
+Then install the composer package as usual with
+```
+composer require wunderio/drupal-ping:^1.0
+```
+
 
 ## Maintainers
 [Janne Koponen](https://github.com/tharna)
