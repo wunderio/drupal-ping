@@ -33,16 +33,20 @@ $result = db_query('SELECT * FROM {users} WHERE uid = 1');
 if (!$result->rowCount()) {
   $errors[] = 'Master database not responding.';
 }
-
+//
 // Check that all memcache instances are running on this server.
 if (isset($conf['memcache_servers'])) {
   foreach ($conf['memcache_servers'] as $address => $bin) {
     list($ip, $port) = explode(':', $address);
     if (!memcache_connect($ip, $port)) {
-      $errors[] = 'Memcache bin <em>' . $bin . '</em> at address ' . $address . ' is not available.';
+      $fails[] = 'Memcache bin <em>' . $bin . '</em> at address ' . $address . ' is not available.';
+    }
+    if(count($fails) >= count($conf['memcache_servers'])) {
+      $errors += $fails;
     }
   }
 }
+
 // Check that Redis instace is running correctly using PhpRedis
 // TCP/IP connection
 if (isset($conf['redis_client_host']) && isset($conf['redis_client_port'])) {
