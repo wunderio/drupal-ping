@@ -8,7 +8,7 @@ Add this to your composer.json:
 
 ```json
 {
-    "repositories": {
+    "repositories":
     {
         "type": "git",
         "url": "https://github.com/wunderio/drupal-ping"
@@ -28,7 +28,7 @@ Add this to your composer.json:
 
 Then install the composer package as usual with
 ```
-composer require wunderio/drupal-ping:dev-7.x
+composer require wunderio/drupal-ping:7.x-dev
 ```
 
 
