@@ -80,7 +80,7 @@ $scheme = \Drupal::config('system.file')->get('default_scheme');
 // Get the real path of the files uri.
 $files_path = \Drupal::service('file_system')->realpath($scheme . '://');
 // Check that the files directory is operating properly.
-if ($test = tempnam($files_path, 'status_check_')) {
+if ($test = \Drupal::service('file_system')->tempnam($files_path, 'status_check_')) {
   if (!unlink($test)) {
     $errors[] = 'Could not delete newly create files in the files directory.';
   }
