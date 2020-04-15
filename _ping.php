@@ -102,6 +102,10 @@ if (isset($settings['redis.connection']['host'])) {
     }
   }
 }
+// Custom checks
+if (file_exists('_ping.custom.php')) {
+  include '_ping.custom.php';
+}
 // Print all errors.
 if ($errors) {
   $errors[] = 'Errors on this server will cause it to be removed from the load balancer.';
