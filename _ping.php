@@ -88,7 +88,10 @@ if ($test = tempnam(variable_get('file_directory_path', conf_path() .'/files'), 
 else {
   $errors[] = 'Could not create temporary file in the files directory.';
 }
-
+// Custom checks
+if (file_exists('_ping.custom.php')) {
+  include '_ping.custom.php';
+}
 // Print all errors.
 if ($errors) {
   $errors[] = 'Errors on this server will cause it to be removed from the load balancer.';
