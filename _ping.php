@@ -1,5 +1,5 @@
 <?php
-//FOR DRUPAL 8 ONLY!
+//FOR DRUPAL 8 or 9 ONLY!
 //FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP)!!
 // Register our shutdown function so that no other shutdown functions run before this one.
 // This shutdown function calls exit(), immediately short-circuiting any other shutdown functions,
