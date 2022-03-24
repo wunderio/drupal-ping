@@ -1,6 +1,6 @@
 <?php
 
-// FOR DRUPAL 8 or 9 ONLY !
+// FOR DRUPAL 8 OR 9 ONLY !
 // FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
 
 // @todo - implement try {} catch {} into most checks
@@ -225,7 +225,7 @@ function check_memcached() {
     return;
   }
 
-  status_set($name, 'error', 'Memcache configured, but memcache classes is not present.');
+  status_set($name, 'error', 'Memcache configured, but Memcache or Memcached class is not present.');
 }
 
 // @todo - Refactor Redis TCP & UNIX code
