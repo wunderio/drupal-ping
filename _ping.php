@@ -78,12 +78,12 @@ function log_errors($errors) {
   if (getenv('SILTA_CLUSTER')) {
     $logger = function (string $msg) {
       error_log($msg);
-    }
+    };
   }
   else {
     $logger = function (string $msg) {
       syslog(LOG_ERR|LOG_LOCAL6, $msg);
-    }
+    };
   }
 
   foreach ($errors as $name => $message) {
