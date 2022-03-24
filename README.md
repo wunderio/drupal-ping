@@ -22,7 +22,7 @@ composer require wunderio/drupal-ping:^1.0
 
 ## Usage
 
-* Maintainers One can visit `/_ping.php` to get a status.
+* One can visit `/_ping.php` to get a status.
 * In case of an error, whole checks status table is printed
 * By using `?debug` query, one can get status check status table, and time profiling table.
 
