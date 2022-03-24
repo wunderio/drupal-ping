@@ -166,18 +166,19 @@ function check_db() {
 // Check that all memcache instances are running on this server.
 function check_memcached() {
 
-  $name = 'memcache';
-
   global $conf;
 
-  if (empty($conf['memcache_servers'])) {
+  $name = 'memcache';
+
+  $servers = $conf['memcache_servers'] ?? NULL;
+  if (empty($servers)) {
     status_set($name, 'info', 'Not configured');
     return;
   }
 
   if (class_exists('Memcache')) {
     $i = 1;
-    foreach ($conf['memcache_servers'] as $address => $bin) {
+    foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if (memcache_connect($ip, $port)) {
         status_set("$name-$i", 'ok', '');
@@ -193,7 +194,7 @@ function check_memcached() {
   if (class_exists('Memcached')) {
     $i = 1;
     $mc = new Memcached();
-    foreach ($conf['memcache_servers'] as $address => $bin) {
+    foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if ($mc->addServer($ip, $port)) {
         status_set("$name-$i", 'ok', '');
