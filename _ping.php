@@ -172,7 +172,7 @@ function check_db() {
     ->query('SELECT * FROM {users} WHERE uid = 1')
     ->fetchAllKeyed();
 
-  if (count($result)) {
+  if (count($result) > 0) {
     status_set($name, 'ok', '');
   }
   else {
@@ -184,16 +184,19 @@ function check_db() {
 // Check that all memcache instances are running on this server.
 function check_memcached() {
 
+  global $drupal_settings;
+
   $name = 'memcache';
 
-  if (empty($settings['memcache']['servers'])) {
+  $servers = $drupal_settings['memcache']['servers'] ?? NULL;
+  if (empty($servers)) {
     status_set($name, 'info', 'Not configured');
     return;
   }
 
   if (class_exists('Memcache')) {
     $i = 1;
-    foreach ($settings['memcache']['servers'] as $address => $bin) {
+    foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if (memcache_connect($ip, $port)) {
         status_set("$name-$i", 'ok', '');
@@ -209,7 +212,7 @@ function check_memcached() {
   if (class_exists('Memcached')) {
     $i = 1;
     $mc = new Memcached();
-    foreach ($settings['memcache']['servers'] as $address => $bin) {
+    foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if ($mc->addServer($ip, $port)) {
         status_set("$name-$i", 'ok', '');
@@ -230,15 +233,17 @@ function check_memcached() {
 // TCP/IP connection
 function check_redis_tcp() {
 
+  global $conf;
+
   $name = 'redis-tcp';
 
-  if (empty($conf['redis_client_host']) || empty($conf['redis_client_port'])) {
+  $host = $conf['redis_client_host'] ?? NULL;
+  $port = $conf['redis_client_port'] ?? NULL;
+
+  if (empty($host) || empty($port)) {
     status_set($name, 'info', 'Not configured');
     return;
   }
-
-  $host = $conf['redis_client_host'];
-  $port = $conf['redis_client_port'];
 
   $redis = new Redis();
   if ($redis->connect($host, $port)) {
@@ -253,15 +258,17 @@ function check_redis_tcp() {
 // UNIX socket connection
 function check_redis_unix() {
 
+  global $drupal_settings;
+
   $name = 'redis-unix';
 
-  if (empty($settings['redis.connection']['host'])) {
+  $host = $drupal_settings['redis.connection']['host'] ?? NULL;
+  $port = $drupal_settings['redis.connection']['port'] ?? NULL;
+
+  if (empty($host)) {
     status_set($name, 'info', 'Not configured');
     return;
   }
-
-  $host = $settings['redis.connection']['host'];
-  $port = $settings['redis.connection']['port'] ?? NULL;
 
   // @Todo, use Redis client interface.
   $redis = new \Redis();
