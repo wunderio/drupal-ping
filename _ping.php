@@ -163,6 +163,7 @@ function bootstrap() {
   $drupal_settings = Settings::getAll();
 }
 
+// Check that the main database is active.
 function check_db() {
 
   $name = 'db';
