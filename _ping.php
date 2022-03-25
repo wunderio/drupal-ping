@@ -312,7 +312,12 @@ function profiling_finish(int $time): void {
 function profiling_measure(string $func): void {
 
   $start = hrtime(TRUE);
-  $func();
+  try {
+    $func();
+  }
+  catch (\Exception $e) {
+    status_set($func, 'error', $e->getMessage());
+  }
   $end = hrtime(TRUE);
   $duration = $end - $start;
 
