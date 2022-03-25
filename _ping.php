@@ -9,7 +9,7 @@ main();
 // Exit immediately, note the shutdown function registered at the top of the file.
 exit();
 
-function main() {
+function main(): void {
 
   // Setup
 
@@ -48,7 +48,7 @@ function main() {
 // Register our shutdown function so that no other shutdown functions run before this one.
 // This shutdown function calls exit(), immediately short-circuiting any other shutdown functions,
 // such as those registered by the devel.module for statistics.
-function setup_shutdown() {
+function setup_shutdown(): void {
   register_shutdown_function(function () {
     exit();
   });
@@ -57,13 +57,13 @@ function setup_shutdown() {
 // We want to ignore _ping.php from New Relic statistics,
 // because with 180rpm and less than 10s avg response times,
 // _ping.php skews the overall statistics significantly.
-function setup_newrelic() {
+function setup_newrelic(): void {
   if (extension_loaded('newrelic')) {
     newrelic_ignore_transaction();
   }
 }
 
-function set_header($code) {
+function set_header($code): void {
   $map = [
     200 => 'OK',
     500 => 'Internal Server Error',
@@ -73,7 +73,7 @@ function set_header($code) {
   header($header);
 }
 
-function log_errors($errors) {
+function log_errors($errors): void {
 
   if (getenv('SILTA_CLUSTER')) {
     $logger = function (string $msg) {
@@ -91,7 +91,7 @@ function log_errors($errors) {
   }
 }
 
-function finish_error($errors) {
+function finish_error($errors): void {
 
   log_errors($errors);
 
@@ -110,7 +110,7 @@ Errors on this server will cause it to be removed from the load balancer.
 TXT;
 }
 
-function finish_success() {
+function finish_success(): void {
 
   $code = 200;
   set_header($code);
@@ -142,14 +142,14 @@ TXT;
 //
 
 // Drupal bootstrap.
-function bootstrap() {
+function bootstrap(): void {
   define('DRUPAL_ROOT', getcwd());
   require_once DRUPAL_ROOT . '/includes/bootstrap.inc';
   drupal_bootstrap(DRUPAL_BOOTSTRAP_DATABASE);
 }
 
 // Check that the main database is active.
-function check_db() {
+function check_db(): void {
 
   $name = 'db';
 
@@ -164,7 +164,7 @@ function check_db() {
 }
 
 // Check that all memcache instances are running on this server.
-function check_memcached() {
+function check_memcached(): void {
 
   global $conf;
 
@@ -213,7 +213,7 @@ function check_memcached() {
 // @todo - Refactor Redis TCP & UNIX code
 // Check that Redis instace is running correctly using PhpRedis
 // TCP/IP connection
-function check_redis_tcp() {
+function check_redis_tcp(): void {
 
   global $conf;
 
@@ -238,7 +238,7 @@ function check_redis_tcp() {
 
 // @todo - Refactor Redis TCP & UNIX code
 // UNIX socket connection
-function check_redis_unix() {
+function check_redis_unix(): void {
 
   global $conf;
 
@@ -262,7 +262,7 @@ function check_redis_unix() {
 
 // Define file_uri_scheme if it does not exist, it's required by realpath().
 // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
-function check_fs_scheme() {
+function check_fs_scheme(): void {
 
   $name = 'fs_scheme';
 
@@ -281,7 +281,7 @@ function check_fs_scheme() {
 }
 
 // Custom checks
-function check_custom_ping() {
+function check_custom_ping(): void {
 
   $name = 'custom-ping';
 
@@ -298,18 +298,18 @@ function check_custom_ping() {
 // Profiling
 //
 
-function profiling_init(int $time) {
+function profiling_init(int $time): void {
   global $profiling;
   $profiling = [];
   $profiling['init'] = $time;
 }
 
-function profiling_finish(int $time) {
+function profiling_finish(int $time): void {
   global $profiling;
   $profiling['finish'] = $time;
 }
 
-function profiling_measure(string $func) {
+function profiling_measure(string $func): void {
 
   $start = hrtime(TRUE);
   $func();
@@ -320,7 +320,7 @@ function profiling_measure(string $func) {
   $profiling[$func] = $duration;
 }
 
-function profiling_tbl() {
+function profiling_tbl(): string {
   global $profiling;
 
   // Calculate 'misc'.
@@ -359,12 +359,12 @@ function profiling_tbl() {
 // Status
 //
 
-function status_init() {
+function status_init(): void {
   global $status;
   $status = [];
 }
 
-function status_set(string $name, string $severity, string $message) {
+function status_set(string $name, string $severity, string $message): void {
   global $status;
   $status[$name] = [
     'severity' => $severity,
@@ -372,7 +372,7 @@ function status_set(string $name, string $severity, string $message) {
   ];
 }
 
-function status_by_severity(string $severity) {
+function status_by_severity(string $severity): array {
   $filtered = [];
   global $status;
   foreach ($status as $name => $details) {
@@ -383,7 +383,7 @@ function status_by_severity(string $severity) {
   return $filtered;
 }
 
-function status_tbl() {
+function status_tbl(): string {
   global $status;
   $lines = [];
   foreach ($status as $name => $details) {
