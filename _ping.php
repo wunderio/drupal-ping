@@ -174,7 +174,7 @@ function check_db(): void {
     ->fetchAllKeyed();
 
   if (count($result) > 0) {
-    status_set($name, 'ok', '');
+    status_set($name, 'success');
   }
   else {
     status_set($name, 'error', 'Master database not returning results.');
@@ -191,7 +191,7 @@ function check_memcached(): void {
 
   $servers = $drupal_settings['memcache']['servers'] ?? NULL;
   if (empty($servers)) {
-    status_set($name, 'info', 'Not configured');
+    status_set($name, 'disabled');
     return;
   }
 
@@ -200,7 +200,7 @@ function check_memcached(): void {
     foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if (memcache_connect($ip, $port)) {
-        status_set("$name-$i", 'ok', '');
+        status_set("$name-$i", 'success');
       }
       else {
         status_set("$name-$i", 'error', "ip=$ip port=$port bin=$bin - unable to connect");
@@ -216,7 +216,7 @@ function check_memcached(): void {
     foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
       if ($mc->addServer($ip, $port)) {
-        status_set("$name-$i", 'ok', '');
+        status_set("$name-$i", 'success');
       }
       else {
         status_set("$name-$i", 'error', "ip=$ip port=$port bin=$bin - unable to connect");
@@ -242,13 +242,13 @@ function check_redis_tcp(): void {
   $port = $conf['redis_client_port'] ?? NULL;
 
   if (empty($host) || empty($port)) {
-    status_set($name, 'info', 'Not configured');
+    status_set($name, 'disabled');
     return;
   }
 
   $redis = new Redis();
   if ($redis->connect($host, $port)) {
-    status_set($name, 'ok', '');
+    status_set($name, 'success');
   }
   else {
     status_set($name, 'error', "host=$host port=$port - unable to connect");
@@ -267,7 +267,7 @@ function check_redis_unix(): void {
   $port = $drupal_settings['redis.connection']['port'] ?? NULL;
 
   if (empty($host)) {
-    status_set($name, 'info', 'Not configured');
+    status_set($name, 'disabled');
     return;
   }
 
@@ -276,7 +276,7 @@ function check_redis_unix(): void {
 
   if (!empty($port)) {
     if ($redis->connect($host, $port)) {
-      status_set($name, 'ok', '');
+      status_set($name, 'success');
     }
     else {
       status_set($name, 'error', "host=$host port=$port - unable to connect");
@@ -285,7 +285,7 @@ function check_redis_unix(): void {
   }
 
   if ($redis->connect($host)) {
-    status_set($name, 'ok', '');
+    status_set($name, 'success');
   }
   else {
     status_set($name, 'error', "host=$host - unable to connect");
@@ -322,7 +322,7 @@ function check_fs_scheme(): void {
     return;
   }
 
-  status_set($name, 'ok', '');
+  status_set($name, 'success');
 }
 
 // Custom checks
@@ -331,7 +331,7 @@ function check_custom_ping(): void {
   $name = 'custom-ping';
 
   if (!file_exists('_ping.custom.php')) {
-    status_set($name, 'info', 'Not configured');
+    status_set($name, 'disabled');
     return;
   }
 
@@ -414,7 +414,7 @@ function status_init(): void {
   $status = [];
 }
 
-function status_set(string $name, string $severity, string $message): void {
+function status_set(string $name, string $severity, string $message = ''): void {
   global $status;
   $status[$name] = [
     'severity' => $severity,
