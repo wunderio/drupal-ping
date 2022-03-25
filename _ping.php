@@ -151,15 +151,15 @@ function bootstrap(): void {
 // Check that the main database is active.
 function check_db(): void {
 
-  $name = 'db';
+  status_set_name('db');
 
   $result = db_query('SELECT * FROM {users} WHERE uid = 1');
 
   if ($result->rowCount() > 0) {
-    status_set($name, 'success');
+    status_set('success');
   }
   else {
-    status_set($name, 'error', 'Master database not returning results.');
+    status_set('error', 'Master database not returning results.');
   }
 }
 
@@ -168,11 +168,11 @@ function check_memcached(): void {
 
   global $conf;
 
-  $name = 'memcache';
+  status_set_name('memcache');
 
   $servers = $conf['memcache_servers'] ?? NULL;
   if (empty($servers)) {
-    status_set($name, 'disabled');
+    status_set('disabled');
     return;
   }
 
@@ -180,11 +180,12 @@ function check_memcached(): void {
     $i = 1;
     foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
+      status_set_name("memcache-$i");
       if (memcache_connect($ip, $port)) {
-        status_set("$name-$i", 'success');
+        status_set('success');
       }
       else {
-        status_set("$name-$i", 'error', "ip=$ip port=$port bin=$bin - unable to connect");
+        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
       }
       $i++;
     }
@@ -196,18 +197,19 @@ function check_memcached(): void {
     $mc = new Memcached();
     foreach ($servers as $address => $bin) {
       list($ip, $port) = explode(':', $address);
+      status_set_name("memcached-$i");
       if ($mc->addServer($ip, $port)) {
-        status_set("$name-$i", 'success');
+        status_set('success');
       }
       else {
-        status_set("$name-$i", 'error', "ip=$ip port=$port bin=$bin - unable to connect");
+        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
       }
       $i++;
     }
     return;
   }
 
-  status_set($name, 'error', 'Memcache configured, but Memcache or Memcached class is not present.');
+  status_set('error', 'Memcache configured, but Memcache or Memcached class is not present.');
 }
 
 // @todo - Refactor Redis TCP & UNIX code
@@ -217,22 +219,22 @@ function check_redis_tcp(): void {
 
   global $conf;
 
-  $name = 'redis-tcp';
+  status_set_name('redis-tcp');
 
   $host = $conf['redis_client_host'] ?? NULL;
   $port = $conf['redis_client_port'] ?? NULL;
 
   if (empty($host) || empty($port)) {
-    status_set($name, 'disabled');
+    status_set('disabled');
     return;
   }
 
   $redis = new Redis();
   if ($redis->connect($host, $port)) {
-    status_set($name, 'success');
+    status_set('success');
   }
   else {
-    status_set($name, 'error', "host=$host port=$port - unable to connect");
+    status_set('error', "host=$host port=$port - unable to connect");
   }
 }
 
@@ -242,21 +244,21 @@ function check_redis_unix(): void {
 
   global $conf;
 
-  $name = 'redis-unix';
+  status_set_name('redis-unix');
 
   $socket = $conf['redis_cache_socket'] ?? NULL;
   if (empty($socket)) {
-    status_set($name, 'disabled');
+    status_set('disabled');
     return;
   }
 
   $redis = new Redis();
 
   if ($redis->connect($socket)) {
-    status_set($name, 'success');
+    status_set('success');
   }
   else {
-    status_set($name, 'error', "socket=$socket - unable to connect");
+    status_set('error', "socket=$socket - unable to connect");
   }
 }
 
@@ -264,32 +266,36 @@ function check_redis_unix(): void {
 // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
 function check_fs_scheme(): void {
 
-  $name = 'fs_scheme';
+  status_set_name('fs_scheme');
 
   $tmp = tempnam(variable_get('file_directory_path', conf_path() . '/files'), 'status_check_');
   if (empty($tmp)) {
-    status_set($name, 'error', 'Could not create temporary file in the files directory.');
+    status_set('error', 'Could not create temporary file in the files directory.');
     return;
   }
 
   if (!unlink($tmp)) {
-    status_set($name, 'error', 'Could not delete newly create files in the files directory.');
+    status_set('error', 'Could not delete newly create files in the files directory.');
     return;
   }
 
-  status_set($name, 'success');
+  status_set('success');
 }
 
 // Custom checks
 function check_custom_ping(): void {
 
-  $name = 'custom-ping';
+  status_set_name('custom-ping');
 
   if (!file_exists('_ping.custom.php')) {
-    status_set($name, 'disabled');
+    status_set('disabled');
     return;
   }
 
+  // We set the status in advance,
+  // but it will be overridden by the custom ping
+  // or by cathc(){}.
+  status_set('success');
   // Note: the custom script has to use status_set() interface for the messages!
   include '_ping.custom.php';
 }
@@ -316,7 +322,8 @@ function profiling_measure(string $func): void {
     $func();
   }
   catch (\Exception $e) {
-    status_set($func, 'error', $e->getMessage());
+    $msg = sprintf('%s(): %s', $func, $e->getMessage());
+    status_set('error', $msg);
   }
   $end = hrtime(TRUE);
   $duration = $end - $start;
@@ -366,12 +373,20 @@ function profiling_tbl(): string {
 
 function status_init(): void {
   global $status;
+  global $status_name;
   $status = [];
+  $status_name = 'unset';
 }
 
-function status_set(string $name, string $severity, string $message = ''): void {
+function status_set_name(string $name) {
+  global $status_name;
+  $status_name = $name;
+}
+
+function status_set(string $severity, string $message = ''): void {
   global $status;
-  $status[$name] = [
+  global $status_name;
+  $status[$status_name] = [
     'severity' => $severity,
     'message' => $message,
   ];
