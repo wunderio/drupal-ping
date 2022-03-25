@@ -34,7 +34,7 @@ function main(): void {
   profiling_finish(hrtime(TRUE));
   $errors = status_by_severity('error');
   if (count($errors) > 0) {
-    finish_error();
+    finish_error($errors);
   }
   else {
     finish_success();
@@ -63,7 +63,7 @@ function setup_newrelic(): void {
   }
 }
 
-function set_header($code): void {
+function set_header(int $code): void {
   $map = [
     200 => 'OK',
     500 => 'Internal Server Error',
@@ -73,7 +73,7 @@ function set_header($code): void {
   header($header);
 }
 
-function log_errors($errors): void {
+function log_errors(array $errors): void {
 
   if (getenv('SILTA_CLUSTER')) {
     $logger = function (string $msg) {
@@ -91,7 +91,7 @@ function log_errors($errors): void {
   }
 }
 
-function finish_error($errors): void {
+function finish_error(array $errors): void {
 
   log_errors($errors);
 
