@@ -36,6 +36,7 @@ function main(): void {
   // Finish
 
   profiling_finish(hrtime(TRUE));
+  log_slow_checks();
   $errors = status_by_severity('error');
   if (count($errors) > 0) {
     finish_error($errors);
@@ -77,9 +78,9 @@ function set_header(int $code): void {
   header($header);
 }
 
-function log_errors(array $errors): void {
+function log_errors(array $errors, string $category): void {
 
-  if (getenv('SILTA_CLUSTER')) {
+  if (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
     $logger = function (string $msg) {
       error_log($msg);
     };
@@ -91,13 +92,13 @@ function log_errors(array $errors): void {
   }
 
   foreach ($errors as $name => $message) {
-    $logger("$name: $message");
+    $logger("ping: $category: $name: $message");
   }
 }
 
 function finish_error(array $errors): void {
 
-  log_errors($errors);
+  log_errors($errors, 'error');
 
   $code = 500;
   set_header($code);
@@ -139,6 +140,14 @@ $status_tbl
 $profiling_tbl
 </pre>
 TXT;
+}
+
+function log_slow_checks() {
+  $slow = profiling_by_duration(1000.0, NULL);
+  foreach ($slow as &$value) {
+    $value = "duration=$value ms";
+  }
+  log_errors($slow, 'slow');
 }
 
 //
@@ -385,7 +394,7 @@ function profiling_tbl(): string {
   $profiling['misc'] = 0;
   $measured = 0;
   foreach ($profiling as $func => $duration) {
-    if (in_array($func, ['init', 'finish'])) {
+    if (in_array($func, ['init', 'finish', 'misc'])) {
       continue;
     }
     $measured += $duration;
@@ -396,7 +405,7 @@ function profiling_tbl(): string {
   $lines = [];
   $measured = 0;
   foreach ($profiling as $func => $duration) {
-    if (in_array($func, ['init', 'finish'])) {
+    if (in_array($func, ['init', 'finish', 'misc'])) {
       continue;
     }
     $duration = $duration / 1000000;
@@ -410,6 +419,26 @@ function profiling_tbl(): string {
 
   $lines = implode(PHP_EOL, $lines);
   return $lines;
+}
+
+function profiling_by_duration(int $minMs = NULL, int $maxMs = NULL): array {
+  global $profiling;
+
+  $filtered = [];
+  foreach ($profiling as $func => $duration) {
+    if (in_array($func, ['init', 'finish', 'misc'])) {
+      continue;
+    }
+    $duration = $duration / 1000000;
+    if (!empty($minMs) && $duration < $minMs) {
+      continue;
+    }
+    if (!empty($maxMs) && $duration > $maxMs) {
+      continue;
+    }
+    $filtered[$func] = $duration;
+  }
+  return $filtered;
 }
 
 //
