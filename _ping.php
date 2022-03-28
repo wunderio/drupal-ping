@@ -25,6 +25,7 @@ function main(): void {
 
   setup_shutdown();
   setup_newrelic();
+  // Will be corrected later when not failing.
   set_header(503);
 
   // Actual stuff
@@ -91,6 +92,7 @@ function set_header(int $code): void {
   header($header);
 }
 
+// Log errors according to environment.
 function log_errors(array $errors, string $category): void {
 
   if (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
@@ -109,6 +111,7 @@ function log_errors(array $errors, string $category): void {
   }
 }
 
+// The finishing scenario when error(s) occurred.
 function finish_error(array $errors): void {
 
   log_errors($errors, 'error');
@@ -128,6 +131,7 @@ Errors on this server will cause it to be removed from the load balancer.
 TXT;
 }
 
+// The finishing scenario when succeeding.
 function finish_success(): void {
 
   $code = 200;
@@ -180,8 +184,8 @@ function bootstrap(): void {
     define('DRUPAL_ROOT', getcwd());
   }
 
-/// ?? not works
   // Get current settings.
+  // And save them for other functions.
   global $drupal_settings;
   $drupal_settings = Settings::getAll();
 }
@@ -214,17 +218,19 @@ function check_memcache(): void {
 
   $servers = $drupal_settings['memcache']['servers'] ?? NULL;
   if (empty($servers)) {
-    status_set('disabled', 'No configuration');
+    status_set('disabled');
     return;
   }
 
+  // Loop through the defined servers
   $i = 1;
   foreach ($servers as $address => $bin) {
-    list($host, $port) = explode(':', $address);
+
     status_set_name("memcache-$i");
+    list($host, $port) = explode(':', $address);
 
     // We are not relying on Memcache or Memcached classes.
-    // For speed and simplicity.
+    // For speed and simplicity we use just basic networking.
     $socket = fsockopen($host, $port, $errno, $errstr, 1);
     if (!empty($errstr)) {
       status_set('error', "host=$host port=$port bin=$bin - $errstr");
@@ -261,7 +267,8 @@ function check_redis(): void {
     return;
   }
 
-  // In case of socket, only host is defined.
+  // In case of a socket,
+  // only host is defined.
 
   // Use PhpRedis, PRedis is outdated.
   $redis = new \Redis();
@@ -279,12 +286,18 @@ function check_elasticsearch(): void {
 
   status_set_name('elasticsearch');
 
+  // We use ping-specific configuration to check Elasticsearch.
+  // Because there are way too many ways how Elasticsearch
+  // connections can be defined depending on libs/mods/versions.
   $connections = $drupal_settings['ping_elasticsearch_connections'] ?? NULL;
   if (empty($connections)) {
     status_set('disabled');
     return;
   }
 
+  // Loop through Elasticsearch connections.
+  // Perform basic curl request,
+  // and ensure we get green status back.
   $i = 1;
   foreach ($connections as $c) {
     status_set_name("elasticsearch-$i");
@@ -330,6 +343,7 @@ function check_elasticsearch(): void {
   status_set('success');
 }
 
+// Create and delete a file in public path.
 function check_fs_scheme(): void {
 
   status_set_name('fs_scheme');
@@ -363,7 +377,7 @@ function check_fs_scheme(): void {
   status_set('success');
 }
 
-// Custom checks
+// Custom ping checks.
 function check_custom_ping(): void {
 
   status_set_name('custom-ping');
@@ -382,7 +396,7 @@ function check_custom_ping(): void {
 }
 
 //
-// Profiling
+// Time Profiling
 //
 
 function profiling_init(int $time): void {
@@ -413,6 +427,9 @@ function profiling_measure(string $func): void {
   $profiling[$func] = $duration;
 }
 
+// Return a 2-column text table:
+// * Durations (sorted)
+// * Check names
 function profiling_tbl(): string {
   global $profiling;
 
@@ -448,6 +465,7 @@ function profiling_tbl(): string {
   return $lines;
 }
 
+// Return checks that executed between $minMs and $maxMs.
 function profiling_by_duration(int $minMs = NULL, int $maxMs = NULL): array {
   global $profiling;
 
@@ -493,6 +511,7 @@ function status_set(string $severity, string $message = ''): void {
   ];
 }
 
+// Return check results by status code.
 function status_by_severity(string $severity): array {
   $filtered = [];
   global $status;
@@ -504,6 +523,7 @@ function status_by_severity(string $severity): array {
   return $filtered;
 }
 
+// Return check results as text table.
 function status_tbl(): string {
   global $status;
   $lines = [];
