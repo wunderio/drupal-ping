@@ -319,8 +319,8 @@ function check_fs_scheme(): void {
 
   status_set_name('fs-scheme');
 
-  $path = variable_get('file_directory_path', conf_path() . '/files'), 'status_check_';
-  $tmp = tempnam($path);
+  $path = variable_get('file_directory_path', conf_path() . '/files');
+  $tmp = tempnam($path, 'status_check_');
   if (empty($tmp)) {
     status_set('error', "path=$path - Could not create temporary file in the files directory.");
     return;
