@@ -10,13 +10,19 @@
       "email": "janne.koponen@wunder.io",
       "homepage": "https://github.com/tharna",
       "role": "Developer"
+    },
+    {
+      "name": "Ragnar Kurm",
+      "email": "ragnar.kurm@wunder.io",
+      "homepage": "https://github.com/ragnarkurmwunder",
+      "role": "Developer"
     }
   ],
   "keywords": [
     "drupal","ping","healthcheck"
   ],
   "require": {
+    "koodimonni/composer-dropin-installer": ">=1.0.1",
     "drupal/core": "~8.0 || ~9.0",
-    "koodimonni/composer-dropin-installer": ">=1.0.1"
   }
 }

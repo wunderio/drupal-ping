@@ -4,7 +4,7 @@
 This script can be used for Drupal8 and Drupal9 health-checks.
 
 ## Installation
-Add this to your composer.json:
+Add this to your `composer.json`:
 ```json
 {
     "extra": {
