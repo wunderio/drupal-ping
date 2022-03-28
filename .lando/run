@@ -1,0 +1,16 @@
+#!/bin/bash
+
+set -xeuo pipefail
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/app/test/drupal/vendor/bin
+
+# cannot do this during the build
+# because db is not available at the build time.
+cd /app/test/drupal
+
+set +e
+drush status bootstrap | grep -q Successful
+status="$?"
+set -e
+if [[ "$status" -ne 0 ]]; then
+  ./vendor/bin/drush site-install standard -y
+fi

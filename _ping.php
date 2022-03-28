@@ -3,40 +3,49 @@
 // FOR DRUPAL 8 OR 9 ONLY !
 // FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
 
-// @todo - implement try {} catch {} into most checks
+// @todo - solr
+// @todo - varnish
 
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
 
 main();
-// Exit immediately, note the shutdown function registered at the top of the file.
-exit();
 
 function main(): void {
 
   // Setup
 
   profiling_init(hrtime(TRUE));
+  status_init();
+
+  if (!empty(getenv('TESTING'))) {
+    return;
+  }
+
   setup_shutdown();
   setup_newrelic();
   set_header(503);
-  status_init();
 
   // Actual stuff
 
   profiling_measure('bootstrap');
   profiling_measure('check_db');
-  profiling_measure('check_memcached');
-  profiling_measure('check_redis_tcp');
-  profiling_measure('check_redis_unix');
+  profiling_measure('check_memcache');
+  profiling_measure('check_redis');
+  profiling_measure('check_elasticsearch');
   profiling_measure('check_fs_scheme');
   profiling_measure('check_custom_ping');
 
   // Finish
 
   profiling_finish(hrtime(TRUE));
+
   log_slow_checks();
+
+  $warnings = status_by_severity('warning');
+  log_errors($warnings, 'warning');
+
   $errors = status_by_severity('error');
   if (count($errors) > 0) {
     finish_error($errors);
@@ -44,6 +53,10 @@ function main(): void {
   else {
     finish_success();
   }
+
+  // Exit immediately.
+  // Note the shutdown function registered at the beginning.
+  exit();
 }
 
 //
@@ -167,6 +180,7 @@ function bootstrap(): void {
     define('DRUPAL_ROOT', getcwd());
   }
 
+/// ?? not works
   // Get current settings.
   global $drupal_settings;
   $drupal_settings = Settings::getAll();
@@ -192,7 +206,7 @@ function check_db(): void {
 }
 
 // Check that all memcache instances are running on this server.
-function check_memcached(): void {
+function check_memcache(): void {
 
   global $drupal_settings;
 
@@ -200,64 +214,57 @@ function check_memcached(): void {
 
   $servers = $drupal_settings['memcache']['servers'] ?? NULL;
   if (empty($servers)) {
-    status_set('disabled');
+    status_set('disabled', 'No configuration');
     return;
   }
 
-  if (class_exists('Memcache')) {
-    $i = 1;
-    foreach ($servers as $address => $bin) {
-      list($ip, $port) = explode(':', $address);
-      status_set_name("memcache-$i");
-      if (memcache_connect($ip, $port)) {
-        status_set('success');
-      }
-      else {
-        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
-      }
-      $i++;
+  $i = 1;
+  foreach ($servers as $address => $bin) {
+    list($host, $port) = explode(':', $address);
+    status_set_name("memcache-$i");
+
+    // We are not relying on Memcache or Memcached classes.
+    // For speed and simplicity.
+    $socket = fsockopen($host, $port, $errno, $errstr, 1);
+    if (!empty($errstr)) {
+      status_set('error', "host=$host port=$port bin=$bin - $errstr");
+      return;
     }
-    return;
-  }
-
-  if (class_exists('Memcached')) {
-    $i = 1;
-    $mc = new Memcached();
-    foreach ($servers as $address => $bin) {
-      list($ip, $port) = explode(':', $address);
-      status_set_name("memcached-$i");
-      if ($mc->addServer($ip, $port)) {
-        status_set('success');
-      }
-      else {
-        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
-      }
-      $i++;
+    fwrite($socket, "stats\n");
+    // Just check the first line of the reponse.
+    $line = fgets($socket);
+    if (!preg_match('/^STAT /', $line)) {
+      status_set('error', "host=$host port=$port bin=$bin - Unexpected response");
+      return;
     }
-    return;
-  }
+    fclose($socket);
 
-  status_set('error', 'Memcache configured, but Memcache or Memcached class is not present.');
+    status_set('success');
+    $i++;
+  }
 }
 
-// @todo - Refactor Redis TCP & UNIX code
-// Check that Redis instace is running correctly using PhpRedis
-// TCP/IP connection
-function check_redis_tcp(): void {
+// Handles both:
+// * TCP/IP - both host and poert are defined
+// * Unix Socket - only host is defined as path
+function check_redis(): void {
 
-  global $conf;
+  global $drupal_settings;
 
-  status_set_name('redis-tcp');
+  status_set_name('redis');
 
-  $host = $conf['redis_client_host'] ?? NULL;
-  $port = $conf['redis_client_port'] ?? NULL;
+  $host = $drupal_settings['redis.connection']['host'] ?? NULL;
+  $port = $drupal_settings['redis.connection']['port'] ?? NULL;
 
   if (empty($host) || empty($port)) {
     status_set('disabled');
     return;
   }
 
-  $redis = new Redis();
+  // In case of socket, only host is defined.
+
+  // Use PhpRedis, PRedis is outdated.
+  $redis = new \Redis();
   if ($redis->connect($host, $port)) {
     status_set('success');
   }
@@ -266,49 +273,69 @@ function check_redis_tcp(): void {
   }
 }
 
-// @todo - Refactor Redis TCP & UNIX code
-// UNIX socket connection
-function check_redis_unix(): void {
+function check_elasticsearch(): void {
 
   global $drupal_settings;
 
-  status_set_name('redis-unix');
+  status_set_name('elasticsearch');
 
-  $host = $drupal_settings['redis.connection']['host'] ?? NULL;
-  $port = $drupal_settings['redis.connection']['port'] ?? NULL;
-
-  if (empty($host)) {
+  $connections = $drupal_settings['ping_elasticsearch_connections'] ?? NULL;
+  if (empty($connections)) {
     status_set('disabled');
     return;
   }
 
-  // @Todo, use Redis client interface.
-  $redis = new \Redis();
+  $i = 1;
+  foreach ($connections as $c) {
+    status_set_name("elasticsearch-$i");
 
-  if (!empty($port)) {
-    if ($redis->connect($host, $port)) {
-      status_set('success');
+    $url = sprintf('%s://%s:%d%s', $c['proto'], $c['host'], $c['port'], '/_cluster/health');
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    curl_setopt($ch, CURLOPT_TIMEOUT_MS, 2000);
+    curl_setopt($ch, CURLOPT_USERAGENT, "ping");
+    $json = curl_exec($ch);
+    if (empty($json)) {
+      $msg = sprintf('url=%s - %s', $url, curl_error($ch));
+      status_set($c['severity'], $msg);
+      curl_close($ch);
+      return;
     }
-    else {
-      status_set('error', "host=$host port=$port - unable to connect");
+    curl_close($ch);
+
+    $data = json_decode($json);
+    if (empty($data)) {
+      $msg = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
+      status_set($c['severity'], $msg);
+      return;
     }
-    return;
+
+    if (empty($data->status)) {
+      $msg = sprintf('url=%s - %s', $url, 'Response does not contain status');
+      status_set($c['severity'], $msg);
+      return;
+    }
+
+    if ($data->status !== 'green') {
+      $msg = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
+      status_set($c['severity'], $msg);
+      return;
+    }
+
+    $i++;
   }
 
-  if ($redis->connect($host)) {
-    status_set('success');
-  }
-  else {
-    status_set('error', "host=$host - unable to connect");
-  }
+  status_set_name('elasticsearch');
+  status_set('success');
 }
 
-// Define file_uri_scheme if it does not exist, it's required by realpath().
-// The function file_uri_scheme is deprecated and will be removed in 9.0.0.
 function check_fs_scheme(): void {
 
   status_set_name('fs_scheme');
 
+  // Define file_uri_scheme if it does not exist, it's required by realpath().
+  // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
   if (!function_exists('file_uri_scheme')) {
     function file_uri_scheme($uri) {
       return \Drupal::service('file_system')->uriScheme($uri);
@@ -319,17 +346,17 @@ function check_fs_scheme(): void {
   $scheme = \Drupal::config('system.file')->get('default_scheme');
 
   // Get the real path of the files uri.
-  $files_path = \Drupal::service('file_system')->realpath($scheme . '://');
+  $path = \Drupal::service('file_system')->realpath($scheme . '://');
 
   // Check that the files directory is operating properly.
-  $tmp = \Drupal::service('file_system')->tempnam($files_path, 'status_check_');
+  $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
   if (empty($tmp)) {
-    status_set('error', 'Could not create temporary file in the files directory.');
+    status_set('error', "path=$path - Could not create temporary file in the files directory.");
     return;
   }
 
   if (!unlink($tmp)) {
-    status_set('error', 'Could not delete newly create files in the files directory.');
+    status_set('error', "file=$tmp - Could not delete newly created file in the files directory.");
     return;
   }
 

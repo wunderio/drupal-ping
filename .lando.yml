@@ -1,0 +1,30 @@
+name: ping
+
+services:
+  appserver:
+    type: php:7.4
+    build_as_root:
+      - /app/.lando/build_as_root
+    build:
+      - /app/.lando/build
+    run_as_root:
+      - /app/.lando/run_as_root
+    run:
+      - /app/.lando/run
+  mariadb:
+    type: mariadb:10.6
+  memcached:
+    type: memcached:1.5.12
+  redis:
+    type: redis:6.0
+  elasticsearch:
+    type: elasticsearch:7.16.0
+  # solr
+  # varnish
+
+tooling:
+  test:
+    service: appserver
+    cmd: php /app/test/test.php
+
+version: 3.6.2
