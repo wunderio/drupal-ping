@@ -3,34 +3,45 @@
 // FOR DRUPAL 7 ONLY!
 // FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
 
+// @todo - solr
+// @todo - varnish
+
 main();
-// Exit immediately, note the shutdown function registered at the top of the file.
-exit();
 
 function main(): void {
 
   // Setup
 
   profiling_init(hrtime(TRUE));
+  status_init();
+
+  if (!empty(getenv('TESTING'))) {
+    return;
+  }
   setup_shutdown();
   setup_newrelic();
+  // Will be corrected later when not failing.
   set_header(503);
-  status_init();
 
   // Actual stuff
 
   profiling_measure('bootstrap');
   profiling_measure('check_db');
-  profiling_measure('check_memcached');
-  profiling_measure('check_redis_tcp');
-  profiling_measure('check_redis_unix');
+  profiling_measure('check_memcache');
+  profiling_measure('check_redis');
+  profiling_measure('check_elasticsearch');
   profiling_measure('check_fs_scheme');
   profiling_measure('check_custom_ping');
 
   // Finish
 
   profiling_finish(hrtime(TRUE));
+
   log_slow_checks();
+
+  $warnings = status_by_severity('warning');
+  log_errors($warnings, 'warning');
+
   $errors = status_by_severity('error');
   if (count($errors) > 0) {
     finish_error($errors);
@@ -38,6 +49,10 @@ function main(): void {
   else {
     finish_success();
   }
+
+  // Exit immediately.
+  // Note the shutdown function registered at the beginning.
+  exit();
 }
 
 //
@@ -72,6 +87,7 @@ function set_header(int $code): void {
   header($header);
 }
 
+// Log errors according to environment.
 function log_errors(array $errors, string $category): void {
 
   if (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
@@ -90,6 +106,7 @@ function log_errors(array $errors, string $category): void {
   }
 }
 
+// The finishing scenario when error(s) occurred.
 function finish_error(array $errors): void {
 
   log_errors($errors, 'error');
@@ -109,6 +126,7 @@ Errors on this server will cause it to be removed from the load balancer.
 TXT;
 }
 
+// The finishing scenario when succeeding.
 function finish_success(): void {
 
   $code = 200;
@@ -171,7 +189,7 @@ function check_db(): void {
 }
 
 // Check that all memcache instances are running on this server.
-function check_memcached(): void {
+function check_memcache(): void {
 
   global $conf;
 
@@ -183,50 +201,39 @@ function check_memcached(): void {
     return;
   }
 
-  if (class_exists('Memcache')) {
-    $i = 1;
-    foreach ($servers as $address => $bin) {
-      list($ip, $port) = explode(':', $address);
-      status_set_name("memcache-$i");
-      if (memcache_connect($ip, $port)) {
-        status_set('success');
-      }
-      else {
-        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
-      }
-      $i++;
+  // Loop through the defined servers
+  foreach ($servers as $address => $bin) {
+
+    list($host, $port) = explode(':', $address);
+
+    // We are not relying on Memcache or Memcached classes.
+    // For speed and simplicity we use just basic networking.
+    $socket = fsockopen($host, $port, $errno, $errstr, 1);
+    if (!empty($errstr)) {
+      status_set('error', "host=$host port=$port bin=$bin - $errstr");
+      return;
     }
-    return;
+    fwrite($socket, "stats\n");
+    // Just check the first line of the reponse.
+    $line = fgets($socket);
+    if (!preg_match('/^STAT /', $line)) {
+      status_set('error', "host=$host port=$port bin=$bin - Unexpected response");
+      return;
+    }
+    fclose($socket);
   }
 
-  if (class_exists('Memcached')) {
-    $i = 1;
-    $mc = new Memcached();
-    foreach ($servers as $address => $bin) {
-      list($ip, $port) = explode(':', $address);
-      status_set_name("memcached-$i");
-      if ($mc->addServer($ip, $port)) {
-        status_set('success');
-      }
-      else {
-        status_set('error', "ip=$ip port=$port bin=$bin - unable to connect");
-      }
-      $i++;
-    }
-    return;
-  }
-
-  status_set('error', 'Memcache configured, but Memcache or Memcached class is not present.');
+  status_set('success');
 }
 
-// @todo - Refactor Redis TCP & UNIX code
-// Check that Redis instace is running correctly using PhpRedis
-// TCP/IP connection
-function check_redis_tcp(): void {
+// Handles both:
+// * TCP/IP - both host and poert are defined
+// * Unix Socket - only host is defined as path
+function check_redis(): void {
 
   global $conf;
 
-  status_set_name('redis-tcp');
+  status_set_name('redis');
 
   $host = $conf['redis_client_host'] ?? NULL;
   $port = $conf['redis_client_port'] ?? NULL;
@@ -236,7 +243,11 @@ function check_redis_tcp(): void {
     return;
   }
 
-  $redis = new Redis();
+  // In case of a socket,
+  // only host is defined.
+
+  // Use PhpRedis, PRedis is outdated.
+  $redis = new \Redis();
   if ($redis->connect($host, $port)) {
     status_set('success');
   }
@@ -245,51 +256,85 @@ function check_redis_tcp(): void {
   }
 }
 
-// @todo - Refactor Redis TCP & UNIX code
-// UNIX socket connection
-function check_redis_unix(): void {
+function check_elasticsearch(): void {
 
   global $conf;
 
-  status_set_name('redis-unix');
+  status_set_name('elasticsearch');
 
-  $socket = $conf['redis_cache_socket'] ?? NULL;
-  if (empty($socket)) {
+  // We use ping-specific configuration to check Elasticsearch.
+  // Because there are way too many ways how Elasticsearch
+  // connections can be defined depending on libs/mods/versions.
+  $connections = $drupal_settings['ping_elasticsearch_connections'] ?? NULL;
+  if (empty($connections)) {
     status_set('disabled');
     return;
   }
 
-  $redis = new Redis();
+  // Loop through Elasticsearch connections.
+  // Perform basic curl request,
+  // and ensure we get green status back.
+  foreach ($connections as $c) {
 
-  if ($redis->connect($socket)) {
-    status_set('success');
+    $url = sprintf('%s://%s:%d%s', $c['proto'], $c['host'], $c['port'], '/_cluster/health');
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+    curl_setopt($ch, CURLOPT_TIMEOUT_MS, 2000);
+    curl_setopt($ch, CURLOPT_USERAGENT, "ping");
+    $json = curl_exec($ch);
+    if (empty($json)) {
+      $msg = sprintf('url=%s - %s', $url, curl_error($ch));
+      status_set($c['severity'], $msg);
+      curl_close($ch);
+      return;
+    }
+    curl_close($ch);
+
+    $data = json_decode($json);
+    if (empty($data)) {
+      $msg = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
+      status_set($c['severity'], $msg);
+      return;
+    }
+
+    if (empty($data->status)) {
+      $msg = sprintf('url=%s - %s', $url, 'Response does not contain status');
+      status_set($c['severity'], $msg);
+      return;
+    }
+
+    if ($data->status !== 'green') {
+      $msg = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
+      status_set($c['severity'], $msg);
+      return;
+    }
   }
-  else {
-    status_set('error', "socket=$socket - unable to connect");
-  }
+
+  status_set('success');
 }
 
-// Define file_uri_scheme if it does not exist, it's required by realpath().
-// The function file_uri_scheme is deprecated and will be removed in 9.0.0.
+// Create and delete a file in public path.
 function check_fs_scheme(): void {
 
-  status_set_name('fs_scheme');
+  status_set_name('fs-scheme');
 
-  $tmp = tempnam(variable_get('file_directory_path', conf_path() . '/files'), 'status_check_');
+  $path = variable_get('file_directory_path', conf_path() . '/files'), 'status_check_';
+  $tmp = tempnam($path);
   if (empty($tmp)) {
-    status_set('error', 'Could not create temporary file in the files directory.');
+    status_set('error', "path=$path - Could not create temporary file in the files directory.");
     return;
   }
 
   if (!unlink($tmp)) {
-    status_set('error', 'Could not delete newly create files in the files directory.');
+    status_set('error', "file=$tmp - Could not delete newly created file in the files directory.");
     return;
   }
 
   status_set('success');
 }
 
-// Custom checks
+// Custom ping checks.
 function check_custom_ping(): void {
 
   status_set_name('custom-ping');
@@ -308,7 +353,7 @@ function check_custom_ping(): void {
 }
 
 //
-// Profiling
+// Time Profiling
 //
 
 function profiling_init(int $time): void {
@@ -339,6 +384,9 @@ function profiling_measure(string $func): void {
   $profiling[$func] = $duration;
 }
 
+// Return a 2-column text table:
+// * Durations (sorted)
+// * Check names
 function profiling_tbl(): string {
   global $profiling;
 
@@ -374,6 +422,7 @@ function profiling_tbl(): string {
   return $lines;
 }
 
+// Return checks that executed between $minMs and $maxMs.
 function profiling_by_duration(int $minMs = NULL, int $maxMs = NULL): array {
   global $profiling;
 
@@ -419,6 +468,7 @@ function status_set(string $severity, string $message = ''): void {
   ];
 }
 
+// Return check results by status code.
 function status_by_severity(string $severity): array {
   $filtered = [];
   global $status;
@@ -430,6 +480,7 @@ function status_by_severity(string $severity): array {
   return $filtered;
 }
 
+// Return check results as text table.
 function status_tbl(): string {
   global $status;
   $lines = [];
