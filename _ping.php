@@ -3,8 +3,6 @@
 // FOR DRUPAL 7 ONLY!
 // FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
 
-// @todo - implement try {} catch {} into most checks
-
 main();
 // Exit immediately, note the shutdown function registered at the top of the file.
 exit();
