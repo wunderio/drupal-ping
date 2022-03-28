@@ -9,35 +9,20 @@ profiling_init(0);
 status_init();
 profiling_measure('bootstrap');
 
-profiling_init(0);
-status_init();
-profiling_measure('check_db');
-assert_array('db');
-
-profiling_init(0);
-status_init();
-profiling_measure('check_memcache');
-assert_array('memcache-1');
-
-profiling_init(0);
-status_init();
-profiling_measure('check_redis');
-assert_array('redis');
-
-profiling_init(0);
-status_init();
-profiling_measure('check_elasticsearch');
-assert_array('elasticsearch');
-
-profiling_init(0);
-status_init();
-profiling_measure('check_fs_scheme');
-assert_array('fs_scheme');
-
-profiling_init(0);
-status_init();
-profiling_measure('check_custom_ping');
-assert_array('custom-ping');
+$checks = [
+  'check_db' => 'db',
+  'check_memcache' => 'memcache',
+  'check_redis' => 'redis',
+  'check_elasticsearch' => 'elasticsearch',
+  'check_fs_scheme' => 'fs-scheme',
+  'check_custom_ping' => 'custom-ping',
+];
+foreach ($checks as $func => $key) {
+  profiling_init(0);
+  status_init();
+  profiling_measure($func);
+  assert_array($key);
+}
 
 function assert_array($id) {
   global $status;

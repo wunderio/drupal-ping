@@ -223,10 +223,8 @@ function check_memcache(): void {
   }
 
   // Loop through the defined servers
-  $i = 1;
   foreach ($servers as $address => $bin) {
 
-    status_set_name("memcache-$i");
     list($host, $port) = explode(':', $address);
 
     // We are not relying on Memcache or Memcached classes.
@@ -244,10 +242,9 @@ function check_memcache(): void {
       return;
     }
     fclose($socket);
-
-    status_set('success');
-    $i++;
   }
+
+  status_set('success');
 }
 
 // Handles both:
@@ -298,9 +295,7 @@ function check_elasticsearch(): void {
   // Loop through Elasticsearch connections.
   // Perform basic curl request,
   // and ensure we get green status back.
-  $i = 1;
   foreach ($connections as $c) {
-    status_set_name("elasticsearch-$i");
 
     $url = sprintf('%s://%s:%d%s', $c['proto'], $c['host'], $c['port'], '/_cluster/health');
     $ch = curl_init($url);
@@ -335,18 +330,15 @@ function check_elasticsearch(): void {
       status_set($c['severity'], $msg);
       return;
     }
-
-    $i++;
   }
 
-  status_set_name('elasticsearch');
   status_set('success');
 }
 
 // Create and delete a file in public path.
 function check_fs_scheme(): void {
 
-  status_set_name('fs_scheme');
+  status_set_name('fs-scheme');
 
   // Define file_uri_scheme if it does not exist, it's required by realpath().
   // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
