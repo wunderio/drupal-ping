@@ -500,7 +500,7 @@ function status_tbl(): string {
   global $status;
   $lines = [];
   foreach ($status as $name => $details) {
-    $lines[] = sprintf('%-15s %-10s %s', $name, $details['severity'], $details['message']);
+    $lines[] = sprintf('%-20s %-10s %s', $name, $details['severity'], $details['message']);
   }
   $lines = implode(PHP_EOL, $lines);
   return $lines;
