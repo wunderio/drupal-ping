@@ -6,18 +6,15 @@ This script can be used for Drupal7 health-checks.
 
 ## Installation
 
+NB! Version 2.0 has updated `dropin-paths` syntax!
+
 Add this to your `composer.json`:
 
 ```json
 {
-    "repositories":
-    {
-        "type": "git",
-        "url": "https://github.com/wunderio/drupal-ping"
-    },
     "extra": {
         "dropin-paths": {
-            "web/": ["type:web-dropin"]
+            "web/": ["package:wunderio/drupal-ping:_ping.php"]
         }
     }
 }
