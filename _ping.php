@@ -43,12 +43,7 @@ function main(): void {
   log_errors($warnings, 'warning');
 
   $errors = status_by_severity('error');
-  if (count($errors) > 0) {
-    finish_error($errors);
-  }
-  else {
-    finish_success();
-  }
+  finish($errors);
 
   // Exit immediately.
   // Note the shutdown function registered at the beginning.
@@ -77,14 +72,16 @@ function setup_newrelic(): void {
   }
 }
 
-function set_header(int $code): void {
+function set_header(int $code): string {
   $map = [
     200 => 'OK',
     500 => 'Internal Server Error',
     503 => 'Service Unavailable',
   ];
-  $header = sprintf('HTTP/1.1 %d %s', $code, $map[$code]);
+  $msg = $map[$code];
+  $header = sprintf('HTTP/1.1 %d %s', $code, $msg);
   header($header);
+  return $msg;
 }
 
 // Log errors according to environment.
@@ -106,44 +103,29 @@ function log_errors(array $errors, string $category): void {
   }
 }
 
-// The finishing scenario when error(s) occurred.
-function finish_error(array $errors): void {
+function finish(array $errors = []): void {
 
-  log_errors($errors, 'error');
-
-  $code = 500;
-  set_header($code);
-
-  $tbl = status_tbl();
-  print <<<TXT
-INTERNAL ERROR $code
-
-<pre>
-$tbl
-</pre>
-
-Errors on this server will cause it to be removed from the load balancer.
-TXT;
-}
-
-// The finishing scenario when succeeding.
-function finish_success(): void {
-
-  $code = 200;
-  set_header($code);
-
+  if (!empty($errors)) {
+    log_errors($errors, 'error');
+    $code = 500;
+  }
+  else {
+    $code = 200;
+  }
   // Split up this message, to prevent the remote chance of monitoring software
   // reading the source code if mod_php fails and then matching the string.
-  print "CONGRATULATIONS $code";
-  print PHP_EOL;
+  $msg = set_header($code);
+  print "$code $msg";
 
-  if (!isset($_GET['debug'])) {
+  if (!is_debug()) {
     return;
   }
 
   $status_tbl = status_tbl();
   $profiling_tbl = profiling_tbl();
   print <<<TXT
+<br/>
+
 <pre>
 $status_tbl
 </pre>
@@ -160,6 +142,20 @@ function log_slow_checks() {
     $value = "duration=$value ms";
   }
   log_errors($slow, 'slow');
+}
+
+function is_debug(): bool {
+
+  $debug = $_GET['debug'] ?? NULL;
+  if (empty($debug)) {
+    return FALSE;
+  }
+
+  global $drupal_hash_salt;
+  $hash = $drupal_hash_salt ?? '';
+  $hash = substr($hash, 0, 4);
+
+  return $debug == $hash;
 }
 
 //
@@ -180,11 +176,12 @@ function check_db(): void {
 
   $result = db_query('SELECT * FROM {users} WHERE uid = 1');
 
-  if ($result->rowCount() > 0) {
+  $count = $result->rowCount();
+  if ($count > 0) {
     status_set('success');
   }
   else {
-    status_set('error', 'Master database not returning results.');
+    status_set('error', "result_count=$count expected=1 Master database invalid results.");
   }
 }
 
@@ -284,7 +281,7 @@ function check_elasticsearch(): void {
     curl_setopt($ch, CURLOPT_USERAGENT, "ping");
     $json = curl_exec($ch);
     if (empty($json)) {
-      $msg = sprintf('url=%s - %s', $url, curl_error($ch));
+      $msg = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
       status_set($c['severity'], $msg);
       curl_close($ch);
       return;
