@@ -1,9 +1,11 @@
 # Drupal ping helper
+
 [![Latest Stable Version](https://poser.pugx.org/wunderio/drupal-ping/v/stable)](https://packagist.org/packages/wunderio/drupal-ping) [![Total Downloads](https://poser.pugx.org/wunderio/drupal-ping/downloads)](https://packagist.org/packages/wunderio/drupal-ping) [![Latest Unstable Version](https://poser.pugx.org/wunderio/drupal-ping/v/unstable)](https://packagist.org/packages/wunderio/drupal-ping) [![License](https://poser.pugx.org/wunderio/drupal-ping/license)](https://packagist.org/packages/wunderio/drupal-ping)
 
 This script can be used for Drupal8 and Drupal9 health-checks.
 
 ## Installation
+
 Add this to your `composer.json`:
 ```json
 {
@@ -90,8 +92,10 @@ Check it out how other checks are created in the `_ping.php`.
 - `lando test` - Execute checks
 
 ## Maintainers
+
 [Janne Koponen](https://github.com/tharna)
 [Ragnar Kurm](https://github.com/ragnarkurmwunder)
 
 ## License
+
 MIT
