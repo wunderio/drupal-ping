@@ -265,7 +265,7 @@ function check_elasticsearch(): void {
   // We use ping-specific configuration to check Elasticsearch.
   // Because there are way too many ways how Elasticsearch
   // connections can be defined depending on libs/mods/versions.
-  $connections = $drupal_settings['ping_elasticsearch_connections'] ?? NULL;
+  $connections = $conf['ping_elasticsearch_connections'] ?? NULL;
   if (empty($connections)) {
     status_set('disabled');
     return;

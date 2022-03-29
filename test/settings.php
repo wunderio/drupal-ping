@@ -14,17 +14,19 @@ $databases['default']['default'] = [
 
 // REDIS
 $redis = json_decode(getenv('LANDO_INFO'))->redis;
-$settings['redis.connection']['host'] = $redis->internal_connection->host;
-$settings['redis.connection']['port'] = $redis->internal_connection->port;
+$conf['redis_client_host'] = $redis->internal_connection->host;
+$conf['redis_client_port'] = $redis->internal_connection->port;
 
 // MEMCACHED
 $memcached = json_decode(getenv('LANDO_INFO'))->memcached;
 $hostport = sprintf('%s:%s', $memcached->internal_connection->host, $memcached->internal_connection->port);
-$settings['memcache']['servers'][$hostport] = 'default';
+$conf['memcache_servers'] = [
+  $hostport => 'default',
+];
 
 // ELASTICSEARCH
 $elasticsearch = json_decode(getenv('LANDO_INFO'))->elasticsearch;
-$settings['ping_elasticsearch_connections'] = [
+$conf['ping_elasticsearch_connections'] = [
   [
     'host' => $elasticsearch->internal_connection->host,
     'port' => $elasticsearch->internal_connection->port,
