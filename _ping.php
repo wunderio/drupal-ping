@@ -18,6 +18,7 @@ function main(): void {
   if (!empty(getenv('TESTING'))) {
     return;
   }
+
   setup_shutdown();
   setup_newrelic();
   // Will be corrected later when not failing.
