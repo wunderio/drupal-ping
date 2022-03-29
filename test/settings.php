@@ -34,4 +34,7 @@ $settings['ping_elasticsearch_connections'] = [
   ],
 ];
 
+# For debugging add "?debug=test" to the query - 4 letters of the hash.
+$settings['hash_salt'] = 'testing';
+
 # Ignore settings added by Drupal install below this line.
