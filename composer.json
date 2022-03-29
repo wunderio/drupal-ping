@@ -22,7 +22,7 @@
     "drupal","ping","healthcheck"
   ],
   "require": {
-    "koodimonni/composer-dropin-installer": ">=1.0.1",
     "drupal/core": "~8.0 || ~9.0",
+    "koodimonni/composer-dropin-installer": ">=1.0.1"
   }
 }
