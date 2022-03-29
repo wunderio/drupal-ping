@@ -305,7 +305,7 @@ function check_elasticsearch(): void {
     curl_setopt($ch, CURLOPT_USERAGENT, "ping");
     $json = curl_exec($ch);
     if (empty($json)) {
-      $msg = sprintf('url=%s - %s', $url, curl_error($ch));
+      $msg = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
       status_set($c['severity'], $msg);
       curl_close($ch);
       return;
