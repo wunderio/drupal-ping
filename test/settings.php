@@ -33,3 +33,5 @@ $settings['ping_elasticsearch_connections'] = [
     'severity' => 'warning', // warning or error
   ],
 ];
+
+# Ignore settings added by Drupal install below this line.
