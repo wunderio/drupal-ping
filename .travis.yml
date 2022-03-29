@@ -1,0 +1,25 @@
+# This uses newer and faster docker based build system
+sudo: false
+
+language: php
+
+notifications:
+  on_success: never
+  on_failure: change
+
+php:
+  - 7.0
+  - 7.1
+  - 7.2
+  - 7.3
+  - 7.4
+  - 8.0
+  - 8.1
+  - nightly
+
+matrix:
+  allow_failures:
+    - php: nightly
+
+script:
+  - php -d error_reporting=32767 -l *.php
