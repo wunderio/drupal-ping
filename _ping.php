@@ -35,7 +35,8 @@ function main(): void {
   profiling_measure('check_memcache');
   profiling_measure('check_redis');
   profiling_measure('check_elasticsearch');
-  profiling_measure('check_fs_scheme');
+  profiling_measure('check_fs_scheme_create');
+  profiling_measure('check_fs_scheme_delete');
   profiling_measure('check_custom_ping');
 
   // Finish
@@ -331,10 +332,9 @@ function check_elasticsearch(): void {
   status_set('success');
 }
 
-// Create and delete a file in public path.
-function check_fs_scheme(): void {
+function check_fs_scheme_create(): void {
 
-  status_set_name('fs-scheme');
+  status_set_name('fs-scheme-create');
 
   // Define file_uri_scheme if it does not exist, it's required by realpath().
   // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
@@ -354,6 +354,24 @@ function check_fs_scheme(): void {
   $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
   if (empty($tmp)) {
     status_set('error', "path=$path - Could not create temporary file in the files directory.");
+    return;
+  }
+
+  global $check_fs_scheme_file;
+  $check_fs_scheme_file = $tmp;
+
+  status_set('success');
+}
+
+function check_fs_scheme_delete(): void {
+
+  status_set_name('fs-scheme-delete');
+
+  global $check_fs_scheme_file;
+  $tmp = $check_fs_scheme_file;
+
+  if (empty($tmp)) {
+    status_set('disabled');
     return;
   }
 

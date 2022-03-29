@@ -14,7 +14,8 @@ $checks = [
   'check_memcache' => 'memcache',
   'check_redis' => 'redis',
   'check_elasticsearch' => 'elasticsearch',
-  'check_fs_scheme' => 'fs-scheme',
+  'check_fs_scheme_create' => 'fs-scheme-create',
+  'check_fs_scheme_delete' => 'fs-scheme-delete',
   'check_custom_ping' => 'custom-ping',
 ];
 foreach ($checks as $func => $key) {

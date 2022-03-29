@@ -9,6 +9,7 @@ This script can be used for Drupal8 and Drupal9 health-checks.
 NB! Version 2.0 has updated `dropin-paths` syntax!
 
 Add this to your `composer.json`:
+
 ```json
 {
     "extra": {
@@ -20,6 +21,7 @@ Add this to your `composer.json`:
 ```
 
 Then install the composer package as usual with
+
 ```
 composer require wunderio/drupal-ping:^2.0
 ```
