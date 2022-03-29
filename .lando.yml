@@ -18,7 +18,28 @@ services:
   redis:
     type: redis:6.0
   elasticsearch:
-    type: elasticsearch:7.16.0
+    # Use custom image for M1 compatibility.
+    # settings.php has harcoded values therefore.
+    type: compose
+    services:
+      image: "docker.elastic.co/elasticsearch/elasticsearch:7.17.0"
+      command: "/bin/tini -- /usr/local/bin/docker-entrypoint.sh eswrapper"
+      user: elasticsearch
+      environment:
+        ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+        discovery.type: "single-node"
+        bootstrap.memory_lock: "true"
+      ulimits:
+        memlock:
+          soft: "-1"
+          hard: "-1"
+      ports:
+        - "9200:9200"
+      volumes:
+        - esdata:/usr/share/elasticsearch/data
+    volumes:
+      esdata:
+        driver: local
   # solr
   # varnish
 

@@ -1,6 +1,6 @@
 <?php
 
-# DB
+// DB
 $db = json_decode(getenv('LANDO_INFO'))->mariadb;
 $databases['default']['default'] = [
   'database' => $db->creds->database,
@@ -28,14 +28,15 @@ $conf['memcache_servers'] = [
 $elasticsearch = json_decode(getenv('LANDO_INFO'))->elasticsearch;
 $conf['ping_elasticsearch_connections'] = [
   [
-    'host' => $elasticsearch->internal_connection->host,
-    'port' => $elasticsearch->internal_connection->port,
+    // Host and port are not exposed by the custom image, therefore hardcode.
+    'host' => 'elasticsearch',
+    'port' => 9200,
     'proto' => 'http', // http or https
     'severity' => 'warning', // warning or error
   ],
 ];
 
-# For debugging add "?debug=test" to the query - 4 letters of the hash.
+// For debugging add "?debug=test" to the query - 4 letters of the hash.
 $drupal_hash_salt = 'testing';
 
-# Ignore settings added by Drupal install below this line.
+// Ignore settings added by Drupal install below this line.
