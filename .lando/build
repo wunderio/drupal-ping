@@ -5,9 +5,19 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
 # d9
 cd /app/test/
+
+set +e
 rm -rf drupal
+chmod -R 777 drupal
+rm -rf drupal
+set -e
+
 composer create-project drupal/recommended-project drupal
-ln -s ../../../../settings.php drupal/web/sites/default/
-ln -s ../../_ping.custom.php drupal/web/
+
+chmod 755 /app/test/drupal/web/sites/default
+rm -f /app/test/drupal/web/sites/default/settings.php
+ln -s /app/test/settings.php /app/test/drupal/web/sites/default/settings.php
+ln -s /app/test/_ping.custom.php /app/test/drupal/web/
+
 cd /app/test/drupal
 composer require --dev drush/drush
