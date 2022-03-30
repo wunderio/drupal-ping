@@ -21,7 +21,7 @@ function main(): void {
   }
 
   setup_shutdown();
-  setup_newrelic();
+  disable_newrelic();
   // Will be corrected later when not failing.
   set_header(503);
 
