@@ -110,14 +110,16 @@ function finish(array $errors = []): void {
   if (!empty($errors)) {
     log_errors($errors, 'error');
     $code = 500;
+    $msg = 'INTERNAL ERROR';
   }
   else {
     $code = 200;
+    $msg = 'CONGRATULATIONS';
   }
+  set_header($code);
   // Split up this message, to prevent the remote chance of monitoring software
   // reading the source code if mod_php fails and then matching the string.
-  $msg = set_header($code);
-  print "$code $msg";
+  print "$msg $code";
 
   if (!is_debug()) {
     return;
