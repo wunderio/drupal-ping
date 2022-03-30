@@ -1,4 +1,4 @@
-name: ping
+name: ping7
 
 services:
   appserver:

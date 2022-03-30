@@ -25,7 +25,6 @@ $conf['memcache_servers'] = [
 ];
 
 // ELASTICSEARCH
-$elasticsearch = json_decode(getenv('LANDO_INFO'))->elasticsearch;
 $conf['ping_elasticsearch_connections'] = [
   [
     // Host and port are not exposed by the custom image, therefore hardcode.
