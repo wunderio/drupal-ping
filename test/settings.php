@@ -21,10 +21,11 @@ $settings['redis.connection']['port'] = $redis->internal_connection->port;
 // MEMCACHED
 $memcached = json_decode(getenv('LANDO_INFO'))->memcached;
 $hostport = sprintf('%s:%s', $memcached->internal_connection->host, $memcached->internal_connection->port);
-$settings['memcache']['servers'][$hostport] = 'default';
+$settings['memcache']['servers'] = [
+  $hostport => 'default',
+];
 
 // ELASTICSEARCH
-$elasticsearch = json_decode(getenv('LANDO_INFO'))->elasticsearch;
 $settings['ping_elasticsearch_connections'] = [
   [
     // Host and port are not exposed by the custom image, therefore hardcode.

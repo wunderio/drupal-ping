@@ -3,9 +3,6 @@
 // FOR DRUPAL 8 OR 9 ONLY !
 // FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
 
-// @todo - solr
-// @todo - varnish
-
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
@@ -72,7 +69,7 @@ function setup_shutdown(): void {
 // We want to ignore _ping.php from New Relic statistics,
 // because with 180rpm and less than 10s avg response times,
 // _ping.php skews the overall statistics significantly.
-function setup_newrelic(): void {
+function disable_newrelic(): void {
   if (extension_loaded('newrelic')) {
     newrelic_ignore_transaction();
   }
@@ -221,6 +218,10 @@ function check_memcache(): void {
     return;
   }
 
+  $good_count = 0;
+  $bad_count = 0;
+  $errors = [];
+
   // Loop through the defined servers
   foreach ($servers as $address => $bin) {
 
@@ -230,24 +231,41 @@ function check_memcache(): void {
     // For speed and simplicity we use just basic networking.
     $socket = fsockopen($host, $port, $errno, $errstr, 1);
     if (!empty($errstr)) {
-      status_set('error', "host=$host port=$port bin=$bin - $errstr");
-      return;
+      $errors[] = "host=$host port=$port - $errstr";
+      $bad_count++;
+      continue;
     }
     fwrite($socket, "stats\n");
     // Just check the first line of the reponse.
     $line = fgets($socket);
     if (!preg_match('/^STAT /', $line)) {
-      status_set('error', "host=$host port=$port bin=$bin - Unexpected response");
-      return;
+      $errors[] = "host=$host port=$port response='$line' - Unexpected response";
+      $bad_count++;
+      continue;
     }
     fclose($socket);
+
+    $good_count++;
   }
 
-  status_set('success');
+  if ($good_count > 0 && $bad_count < 1) {
+    status_set('success');
+    return;
+  }
+
+  if ($good_count > 0 && $bad_count > 0) {
+    status_set('warning', implode('; ', $errors));
+    return;
+  }
+
+  if ($good_count < 1 && $bad_count > 0) {
+    status_set('error', implode('; ', $errors));
+    return;
+  }
 }
 
 // Handles both:
-// * TCP/IP - both host and poert are defined
+// * TCP/IP - both host and port are defined
 // * Unix Socket - only host is defined as path
 function check_redis(): void {
 
@@ -291,6 +309,10 @@ function check_elasticsearch(): void {
     return;
   }
 
+  $good_count = 0;
+  $bad_count = 0;
+  $errors = [];
+
   // Loop through Elasticsearch connections.
   // Perform basic curl request,
   // and ensure we get green status back.
@@ -304,34 +326,49 @@ function check_elasticsearch(): void {
     curl_setopt($ch, CURLOPT_USERAGENT, "ping");
     $json = curl_exec($ch);
     if (empty($json)) {
-      $msg = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
-      status_set($c['severity'], $msg);
+      $errors[] = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
       curl_close($ch);
-      return;
+      $bad_count++;
+      continue;
     }
     curl_close($ch);
 
     $data = json_decode($json);
     if (empty($data)) {
-      $msg = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
-      status_set($c['severity'], $msg);
-      return;
+      $errors[] = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
+      $bad_count++;
+      continue;
     }
 
     if (empty($data->status)) {
-      $msg = sprintf('url=%s - %s', $url, 'Response does not contain status');
-      status_set($c['severity'], $msg);
-      return;
+      $errors[] = sprintf('url=%s - %s', $url, 'Response does not contain status');
+      $bad_count++;
+      continue;
     }
 
     if ($data->status !== 'green') {
-      $msg = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
-      status_set($c['severity'], $msg);
-      return;
+      $errors[] = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
+      $bad_count++;
+      continue;
     }
+
+    $good_count++;
   }
 
-  status_set('success');
+  if ($good_count > 0 && $bad_count < 1) {
+    status_set('success');
+    return;
+  }
+
+  if ($good_count > 0 && $bad_count > 0) {
+    status_set('warning', implode('; ', $errors));
+    return;
+  }
+
+  if ($good_count < 1 && $bad_count > 0) {
+    status_set($c['severity'], implode('; ', $errors));
+    return;
+  }
 }
 
 function check_fs_scheme_create(): void {

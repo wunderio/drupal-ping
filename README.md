@@ -6,8 +6,6 @@ This script can be used for Drupal8 and Drupal9 health-checks.
 
 ## Installation
 
-NB! Version 2.0 has updated `dropin-paths` syntax!
-
 Add this to your `composer.json`:
 
 ```json
@@ -20,17 +18,24 @@ Add this to your `composer.json`:
 }
 ```
 
-Then install the composer package as usual with
+Then install the composer package as usual with:
 
 ```
 composer require wunderio/drupal-ping:^2.0
 ```
 
+## v2.0
+
+Breaking Changes!
+
+- `composer.json`: `extra`: `dropin-paths` has a syntax!
+- `settings.php`: Elasticsearch has additional syntax for testing. See below.
+
 ## Usage
 
-* One can visit `/_ping.php` to get a status.
-* In case of an error, whole checks status table is printed
-* By using `?debug` query, one can get status check status table, and time profiling table.
+* One can visit `/_ping.php` to get a status
+* By using `?debug=hash` query, one can get status check status table, and time profiling table. The `hash` is 4 first letters of the salt in `settings.php`.
+* Find slow checks and checks errors in logs.
 
 ## Checks
 
@@ -41,6 +46,12 @@ User #1 record is fetched from the database.
 ### Memcache
 
 Assumes `$settings['memcache']['servers']` presence in the `settings.php`.
+
+Following statuses are issued:
+* `disable` - No memcached servers defined in settings
+* `success` - All connections succeed
+* `warning` - At least one connection succeeds, at least one connection fails
+* `error` - All connections fail
 
 Basic networking is used, no `Memcached` or `Memcache` class.
 
@@ -77,6 +88,12 @@ on many factors.
 
 The connection is establised by PHP `curl`, and then `/_cluster/health` is
 being visited. The check expects to get `green` status in the response.
+
+Following statuses are issued:
+* `disable` - No Elasticsearch servers defined in settings
+* `success` - All connections succeed
+* `warning` - At least one connection succeeds, at least one connection fails
+* `$['severity']` - All connections fail
 
 ### FS Scheme
 

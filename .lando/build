@@ -12,6 +12,8 @@ chmod -R 777 drupal
 rm -rf drupal
 set -e
 
+# NB! When Composer breaks:
+# https://www.drupal.org/project/drupal/issues/3255749
 composer create-project drupal/recommended-project drupal
 
 chmod 755 /app/test/drupal/web/sites/default
