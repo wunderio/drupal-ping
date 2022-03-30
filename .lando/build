@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -xeuo pipefail
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
+
+# d9
+cd /app/test/
+
+set +e
+rm -rf drupal
+chmod -R 777 drupal
+rm -rf drupal
+set -e
+
+# NB! When Composer breaks:
+# https://www.drupal.org/project/drupal/issues/3255749
+composer create-project drupal/recommended-project drupal
+
+chmod 755 /app/test/drupal/web/sites/default
+rm -f /app/test/drupal/web/sites/default/settings.php
+ln -s /app/test/settings.php /app/test/drupal/web/sites/default/settings.php
+ln -s /app/test/_ping.custom.php /app/test/drupal/web/
+
+cd /app/test/drupal
+composer require --dev drush/drush
