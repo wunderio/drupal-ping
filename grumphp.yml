@@ -1,0 +1,16 @@
+grumphp:
+  stop_on_failure: false
+  process_timeout: 300
+  ascii:
+    failed: ~
+    succeeded: ~
+  tasks:
+    php_compatibility: ~
+    check_file_permissions: ~
+    php_check_syntax: ~
+    phpcs: ~
+  extensions:
+    - Wunderio\GrumPHP\Task\PhpCompatibility\PhpCompatibilityExtensionLoader
+    - Wunderio\GrumPHP\Task\PhpCheckSyntax\PhpCheckSyntaxExtensionLoader
+    - Wunderio\GrumPHP\Task\CheckFilePermissions\CheckFilePermissionsExtensionLoader
+    - Wunderio\GrumPHP\Task\Phpcs\PhpcsExtensionLoader
