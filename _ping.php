@@ -1,20 +1,31 @@
 <?php
 
-// FOR DRUPAL 8 OR 9 ONLY !
-// FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
+/**
+ * @file
+ * The Ping Utility.
+ *
+ * FOR DRUPAL 8 OR 9 ONLY !
+ * FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
+ */
 
+use Drupal\Core\Database\Database;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
 
 main();
 
+/**
+ * The main function.
+ */
 function main(): void {
 
-  // Setup
+  /*
+   * Setup
+   */
 
-  profiling_init(hrtime(TRUE));
-  status_init();
+  $profile = new Profile();
+  $status = new Status();
 
   if (!empty(getenv('TESTING'))) {
     return;
@@ -25,56 +36,93 @@ function main(): void {
   // Will be corrected later when not failing.
   set_header(503);
 
-  // Actual stuff
+  /*
+   * Actual stuff.
+   */
 
-  profiling_measure('bootstrap');
-  profiling_measure('check_db');
-  profiling_measure('check_memcache');
-  profiling_measure('check_redis');
-  profiling_measure('check_elasticsearch');
-  profiling_measure('check_fs_scheme_create');
-  profiling_measure('check_fs_scheme_delete');
-  profiling_measure('check_custom_ping');
+  foreach ([
+    'bootstrap',
+    'check_db',
+    'check_memcache',
+    'check_redis',
+    'check_elasticsearch',
+    'check_fs_scheme_create',
+    'check_fs_scheme_delete',
+    'check_custom_ping',
+  ] as $func) {
+    // Although checks provide the name as the first thing,
+    // just for safety if any of the checks fails too early.
+    $status->setName($func);
+    $msg = $profile->measure($func, [$status]);
+    if (!empty($msg)) {
+      $status->set('error', $msg);
+    }
+  }
 
-  // Finish
+  /*
+   * Finish.
+   */
 
-  profiling_finish(hrtime(TRUE));
+  $profile->stop();
 
-  log_slow_checks();
+  log_slow_checks($profile);
 
-  $warnings = status_by_severity('warning');
+  $warnings = $status->getBySeverity('warning');
   log_errors($warnings, 'warning');
 
-  $errors = status_by_severity('error');
-  finish($errors);
+  $errors = $status->getBySeverity('error');
+  finish($status, $profile, $errors);
 
   // Exit immediately.
   // Note the shutdown function registered at the beginning.
   exit();
 }
 
-//
-// Setup & Finish
-//
+/*
+ * Setup & Finish.
+ */
 
-// Register our shutdown function so that no other shutdown functions run before this one.
-// This shutdown function calls exit(), immediately short-circuiting any other shutdown functions,
-// such as those registered by the devel.module for statistics.
+/**
+ * Custom shutdown.
+ *
+ * Register our shutdown function so that no other shutdown functions run
+ * before this one.  This shutdown function calls exit(), immediately
+ * short-circuiting any other shutdown functions, such as those registered by
+ * the devel.module for statistics.
+ */
 function setup_shutdown(): void {
+  // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FunctionHandlingFunctions.WarnFunctionHandling
   register_shutdown_function(function () {
     exit();
   });
 }
 
-// We want to ignore _ping.php from New Relic statistics,
-// because with 180rpm and less than 10s avg response times,
-// _ping.php skews the overall statistics significantly.
+/**
+ * Disable NewRelic.
+ *
+ * We want to ignore _ping.php from New Relic statistics.
+ * _ping.php skews the overall statistics significantly.
+ */
 function disable_newrelic(): void {
   if (extension_loaded('newrelic')) {
     newrelic_ignore_transaction();
   }
 }
 
+/**
+ * Set response header.
+ *
+ * It can be called multiple times.
+ * Originally the error status can be set.
+ * But if the code finishes without errors,
+ * then we can override that with successful status.
+ *
+ * @param int $code
+ *   The status code, for ex 200, 404, etc.
+ *
+ * @return string
+ *   The status message string.
+ */
 function set_header(int $code): string {
   $map = [
     200 => 'OK',
@@ -87,7 +135,14 @@ function set_header(int $code): string {
   return $msg;
 }
 
-// Log errors according to environment.
+/**
+ * Log errors according to the environment.
+ *
+ * We recognize following envs:
+ * - silta -> stderr.
+ * - lando -> stderr.
+ * - the rest -> syslog().
+ */
 function log_errors(array $errors, string $category): void {
 
   if (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
@@ -97,7 +152,7 @@ function log_errors(array $errors, string $category): void {
   }
   else {
     $logger = function (string $msg) {
-      syslog(LOG_ERR|LOG_LOCAL6, $msg);
+      syslog(LOG_ERR | LOG_LOCAL6, $msg);
     };
   }
 
@@ -106,7 +161,15 @@ function log_errors(array $errors, string $category): void {
   }
 }
 
-function finish(array $errors = []): void {
+/**
+ * Deliver the results.
+ *
+ * It performs following things:
+ * - Take care status code.
+ * - Deliver the ping status.
+ * - Print debug info if requested.
+ */
+function finish(object $status, object $profile, array $errors = []): void {
 
   if (!empty($errors)) {
     log_errors($errors, 'error');
@@ -126,8 +189,8 @@ function finish(array $errors = []): void {
     return;
   }
 
-  $status_tbl = status_tbl();
-  $profiling_tbl = profiling_tbl();
+  $status_tbl = $status->getTextTable(PHP_EOL);
+  $profiling_tbl = $profile->getTextTable(PHP_EOL);
   print <<<TXT
 <br/>
 
@@ -141,14 +204,26 @@ $profiling_tbl
 TXT;
 }
 
-function log_slow_checks() {
-  $slow = profiling_by_duration(1000.0, NULL);
+/**
+ * Log all slow requests.
+ *
+ * Fetch all slow requests from the profiling system,
+ * and log them.
+ */
+function log_slow_checks(object $profile): void {
+  $slow = $profile->getByDuration(1000.0, NULL);
   foreach ($slow as &$value) {
     $value = "duration=$value ms";
   }
   log_errors($slow, 'slow');
 }
 
+/**
+ * Detect if debug information should be provided on request.
+ *
+ * Currently it is matching '?debug=hash',
+ * where the 'hash' is the 4 first letters of the Drupal hash salt.
+ */
 function is_debug(): bool {
 
   $debug = $_GET['debug'] ?? NULL;
@@ -156,19 +231,23 @@ function is_debug(): bool {
     return FALSE;
   }
 
-  global $drupal_settings;
-  $hash = $drupal_settings['hash_salt'] ?? '';
+  global $_drupal_settings;
+  $hash = $_drupal_settings['hash_salt'] ?? '';
   $hash = substr($hash, 0, 4);
 
   return $debug == $hash;
 }
 
-//
-// Actual functionality (to be profiled)
-//
+/*
+ * Actual functionality (to be profiled).
+ */
 
-// Drupal bootstrap.
-function bootstrap(): void {
+/**
+ * Drupal bootstrap.
+ *
+ * This is a prerequisite for the rest of the checks.
+ */
+function bootstrap(object $status): void {
 
   $autoloader = require_once 'autoload.php';
   $request = Request::createFromGlobals();
@@ -182,39 +261,49 @@ function bootstrap(): void {
 
   // Get current settings.
   // And save them for other functions.
-  global $drupal_settings;
-  $drupal_settings = Settings::getAll();
+  global $_drupal_settings;
+  $_drupal_settings = Settings::getAll();
 }
 
-// Check that the main database is active.
-function check_db(): void {
+/**
+ * Check: Main database connectivity.
+ */
+function check_db(object $status): void {
 
-  status_set_name('db');
+  $status->setName('db');
 
   // Check that the main database is active.
-  $result = \Drupal\Core\Database\Database::getConnection()
+  $result = Database::getConnection()
     ->query('SELECT * FROM {users} WHERE uid = 1')
     ->fetchAllKeyed();
 
   $count = count($result);
   if ($count > 0) {
-    status_set('success');
+    $status->set('success');
   }
   else {
-    status_set('error', "result_count=$count expected=1 Master database invalid results.");
+    $status->set('error', "result_count=$count expected=1 Master database invalid results.");
   }
 }
 
-// Check that all memcache instances are running on this server.
-function check_memcache(): void {
+/**
+ * Check: Memcache connectivity.
+ *
+ * Verify that all memcache instances are running on this server.
+ * There are 3 statuses:
+ * - 'success' - all instances are available.
+ * - 'warning' - 0<x<all instances are not available.
+ * - 'error' - all instances are unavailable.
+ */
+function check_memcache(object $status): void {
 
-  global $drupal_settings;
+  global $_drupal_settings;
 
-  status_set_name('memcache');
+  $status->setName('memcache');
 
-  $servers = $drupal_settings['memcache']['servers'] ?? NULL;
+  $servers = $_drupal_settings['memcache']['servers'] ?? NULL;
   if (empty($servers)) {
-    status_set('disabled');
+    $status->set('disabled');
     return;
   }
 
@@ -222,10 +311,10 @@ function check_memcache(): void {
   $bad_count = 0;
   $errors = [];
 
-  // Loop through the defined servers
+  // Loop through the defined servers.
   foreach ($servers as $address => $bin) {
 
-    list($host, $port) = explode(':', $address);
+    [$host, $port] = explode(':', $address);
 
     // We are not relying on Memcache or Memcached classes.
     // For speed and simplicity we use just basic networking.
@@ -249,63 +338,72 @@ function check_memcache(): void {
   }
 
   if ($good_count > 0 && $bad_count < 1) {
-    status_set('success');
+    $status->set('success');
     return;
   }
 
   if ($good_count > 0 && $bad_count > 0) {
-    status_set('warning', implode('; ', $errors));
+    $status->set('warning', implode('; ', $errors));
     return;
   }
 
   if ($good_count < 1 && $bad_count > 0) {
-    status_set('error', implode('; ', $errors));
+    $status->set('error', implode('; ', $errors));
     return;
   }
 }
 
-// Handles both:
-// * TCP/IP - both host and port are defined
-// * Unix Socket - only host is defined as path
-function check_redis(): void {
+/**
+ * Check: Redis connectivity.
+ *
+ * Handles both:
+ * - TCP/IP - both host and port are defined.
+ * - Unix Socket - only host is defined as path.
+ */
+function check_redis(object $status): void {
 
-  global $drupal_settings;
+  global $_drupal_settings;
 
-  status_set_name('redis');
+  $status->setName('redis');
 
-  $host = $drupal_settings['redis.connection']['host'] ?? NULL;
-  $port = $drupal_settings['redis.connection']['port'] ?? NULL;
+  $host = $_drupal_settings['redis.connection']['host'] ?? NULL;
+  $port = $_drupal_settings['redis.connection']['port'] ?? NULL;
 
   if (empty($host) || empty($port)) {
-    status_set('disabled');
+    $status->set('disabled');
     return;
   }
 
-  // In case of a socket,
-  // only host is defined.
+  /*
+   * In case of a socket,
+   * only host is defined.
+   */
 
   // Use PhpRedis, PRedis is outdated.
   $redis = new \Redis();
   if ($redis->connect($host, $port)) {
-    status_set('success');
+    $status->set('success');
   }
   else {
-    status_set('error', "host=$host port=$port - unable to connect");
+    $status->set('error', "host=$host port=$port - unable to connect");
   }
 }
 
-function check_elasticsearch(): void {
+/**
+ * Check: Elasticsearch connectivity by curl.
+ */
+function check_elasticsearch(object $status): void {
 
-  global $drupal_settings;
+  global $_drupal_settings;
 
-  status_set_name('elasticsearch');
+  $status->setName('elasticsearch');
 
   // We use ping-specific configuration to check Elasticsearch.
   // Because there are way too many ways how Elasticsearch
   // connections can be defined depending on libs/mods/versions.
-  $connections = $drupal_settings['ping_elasticsearch_connections'] ?? NULL;
+  $connections = $_drupal_settings['ping_elasticsearch_connections'] ?? NULL;
   if (empty($connections)) {
-    status_set('disabled');
+    $status->set('disabled');
     return;
   }
 
@@ -356,31 +454,41 @@ function check_elasticsearch(): void {
   }
 
   if ($good_count > 0 && $bad_count < 1) {
-    status_set('success');
+    $status->set('success');
     return;
   }
 
   if ($good_count > 0 && $bad_count > 0) {
-    status_set('warning', implode('; ', $errors));
+    $status->set('warning', implode('; ', $errors));
     return;
   }
 
   if ($good_count < 1 && $bad_count > 0) {
-    status_set($c['severity'], implode('; ', $errors));
+    $status->set($c['severity'], implode('; ', $errors));
     return;
   }
 }
 
-function check_fs_scheme_create(): void {
+/**
+ * Check: Filesystem item creation.
+ *
+ * Note, 'Filesystem item deletion' depends on this, and is executed after.
+ */
+function check_fs_scheme_create(object $status): void {
 
-  status_set_name('fs-scheme-create');
+  $status->setName('fs-scheme-create');
 
   // Define file_uri_scheme if it does not exist, it's required by realpath().
   // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
   if (!function_exists('file_uri_scheme')) {
+
+    /**
+     * Hmm.
+     */
     function file_uri_scheme($uri) {
       return \Drupal::service('file_system')->uriScheme($uri);
     }
+
   }
 
   // Get current defined scheme.
@@ -392,189 +500,300 @@ function check_fs_scheme_create(): void {
   // Check that the files directory is operating properly.
   $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
   if (empty($tmp)) {
-    status_set('error', "path=$path - Could not create temporary file in the files directory.");
+    $status->set('error', "path=$path - Could not create temporary file in the files directory.");
     return;
   }
 
-  global $check_fs_scheme_file;
-  $check_fs_scheme_file = $tmp;
+  global $_check_fs_scheme_file;
+  $_check_fs_scheme_file = $tmp;
 
-  status_set('success');
+  $status->set('success');
 }
 
-function check_fs_scheme_delete(): void {
+/**
+ * Check: Filesystem item deletion.
+ *
+ * Note, it depends on 'Filesystem item creation' being executed before.
+ */
+function check_fs_scheme_delete(object $status): void {
 
-  status_set_name('fs-scheme-delete');
+  $status->setName('fs-scheme-delete');
 
-  global $check_fs_scheme_file;
-  $tmp = $check_fs_scheme_file;
+  global $_check_fs_scheme_file;
+  $tmp = $_check_fs_scheme_file;
 
   if (empty($tmp)) {
-    status_set('disabled');
+    $status->set('disabled');
     return;
   }
 
   if (!unlink($tmp)) {
-    status_set('error', "file=$tmp - Could not delete newly created file in the files directory.");
+    $status->set('error', "file=$tmp - Could not delete newly created file in the files directory.");
     return;
   }
 
-  status_set('success');
+  $status->set('success');
 }
 
-// Custom ping checks.
-function check_custom_ping(): void {
+/**
+ * Check: Custom ping.
+ *
+ * _ping.custom.php will be executed if present.
+ */
+function check_custom_ping(object $status): void {
 
-  status_set_name('custom-ping');
+  $status->setName('custom-ping');
 
   if (!file_exists('_ping.custom.php')) {
-    status_set('disabled');
+    $status->set('disabled');
     return;
   }
 
   // We set the status in advance,
   // but it will be overridden by the custom ping
-  // or by cathc(){}.
-  status_set('success');
-  // Note: the custom script has to use status_set() interface for the messages!
+  // or by catch(){}.
+  $status->set('success');
+
+  // Note: the custom script has to use
+  // $status->set() interface for the messages!
   include '_ping.custom.php';
 }
 
-//
-// Time Profiling
-//
+/**
+ * Time Profiling subsystem keeps track of timing.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class Profile {
 
-function profiling_init(int $time): void {
-  global $profiling;
-  $profiling = [];
-  $profiling['init'] = $time;
-}
+  /**
+   * Execution start time[ns].
+   *
+   * @var int
+   */
+  private $start;
 
-function profiling_finish(int $time): void {
-  global $profiling;
-  $profiling['finish'] = $time;
-}
+  /**
+   * Execution stop time[ns].
+   *
+   * @var int
+   */
+  private $stop;
 
-function profiling_measure(string $func): void {
+  /**
+   * Duration[ns] of an execution: stop - start.
+   *
+   * @var int
+   */
+  private $duration;
 
-  $start = hrtime(TRUE);
-  try {
-    $func();
+  /**
+   * Time[ns] spent on non-measured stuff.
+   *
+   * @var int
+   */
+  private $misc;
+
+  /**
+   * Holds profiled functions and durations[ns].
+   *
+   * @var array
+   */
+  private $items = [];
+
+  /**
+   * Init profiling, start global execution measurement.
+   *
+   * This function/object must be executed as early as possible.
+   */
+  public function __construct() {
+    $this->start = hrtime(TRUE);
   }
-  catch (\Exception $e) {
-    $msg = sprintf('%s(): %s', $func, $e->getMessage());
-    status_set('error', $msg);
-  }
-  $end = hrtime(TRUE);
-  $duration = $end - $start;
 
-  global $profiling;
-  $profiling[$func] = $duration;
-}
+  /**
+   * Stop global execution measurement.
+   */
+  public function stop(): void {
 
-// Return a 2-column text table:
-// * Durations (sorted)
-// * Check names
-function profiling_tbl(): string {
-  global $profiling;
+    $this->stop = hrtime(TRUE);
 
-  // Calculate 'misc'.
-  // Misc is time spent on non-measured things.
-  $profiling['misc'] = 0;
-  $measured = 0;
-  foreach ($profiling as $func => $duration) {
-    if (in_array($func, ['init', 'finish', 'misc'])) {
-      continue;
+    $this->duration = $this->stop - $this->start;
+
+    $measured = 0;
+    foreach ($this->items as $duration) {
+      $measured += $duration;
     }
-    $measured += $duration;
-  }
-  $profiling['misc'] = $profiling['finish'] - $profiling['init'] - $measured;
 
-  arsort($profiling);
-  $lines = [];
-  $measured = 0;
-  foreach ($profiling as $func => $duration) {
-    if (in_array($func, ['init', 'finish', 'misc'])) {
-      continue;
-    }
-    $duration = $duration / 1000000;
-    $lines[] = sprintf('% 10.3f ms - %s', $duration, $func);
+    // Calculate 'misc'.
+    // Misc is time spent on non-measured things.
+    // It is total_execution_time - sum(measured_items).
+    $misc = 0;
+    $this->misc = $this->duration - $measured;
   }
 
-  $total = $profiling['finish'] - $profiling['init'];
-  $total = $total / 1000000;
-  $total = sprintf('% 10.3f ms - %s', $total, 'total');
-  $lines[] = $total;
+  /**
+   * Execute a function, and measure execution time and catch errors.
+   *
+   * The time measures is being recorded internally, but not returned.
+   * The error-catching is way too convenient and tempting here,
+   * though it violates the single responsibility.
+   *
+   * @param string $func
+   *   The function name to be executed, and measured.
+   * @param array $args
+   *   Arguments to provide to the function.
+   *
+   * @return string|null
+   *   Return error string, or NULL.
+   */
+  public function measure(string $func, array $args) {
 
-  $lines = implode(PHP_EOL, $lines);
-  return $lines;
-}
+    $start = hrtime(TRUE);
+    try {
+      $msg = NULL;
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FunctionHandlingFunctions.WarnFunctionHandling
+      call_user_func_array($func, $args);
+    }
+    catch (\Exception $e) {
+      $msg = sprintf('%s(): %s', $func, $e->getMessage());
+    }
+    $end = hrtime(TRUE);
+    $duration = $end - $start;
 
-// Return checks that executed between $minMs and $maxMs.
-function profiling_by_duration(int $minMs = NULL, int $maxMs = NULL): array {
-  global $profiling;
+    $this->items[$func] = $duration;
 
-  $filtered = [];
-  foreach ($profiling as $func => $duration) {
-    if (in_array($func, ['init', 'finish', 'misc'])) {
-      continue;
-    }
-    $duration = $duration / 1000000;
-    if (!empty($minMs) && $duration < $minMs) {
-      continue;
-    }
-    if (!empty($maxMs) && $duration > $maxMs) {
-      continue;
-    }
-    $filtered[$func] = $duration;
+    return $msg;
   }
-  return $filtered;
-}
 
-//
-// Status
-//
+  /**
+   * Format a 2-column text table.
+   *
+   * @return string
+   *   The table has following columns:
+   *   - Durations (sorted)
+   *   - Check names
+   */
+  public function getTextTable(string $separator): string {
 
-function status_init(): void {
-  global $status;
-  global $status_name;
-  $status = [];
-  $status_name = 'unset';
-}
+    $fmt = '% 10.3f ms - %s';
 
-function status_set_name(string $name) {
-  global $status_name;
-  $status_name = $name;
-}
-
-function status_set(string $severity, string $message = ''): void {
-  global $status;
-  global $status_name;
-  $status[$status_name] = [
-    'severity' => $severity,
-    'message' => $message,
-  ];
-}
-
-// Return check results by status code.
-function status_by_severity(string $severity): array {
-  $filtered = [];
-  global $status;
-  foreach ($status as $name => $details) {
-    if ($details['severity'] == $severity) {
-      $filtered[$name] = $details['message'];
+    arsort($items);
+    $lines = [];
+    foreach ($this->items as $func => $duration) {
+      $lines[] = sprintf($fmt, $duration / 1000000, $func);
     }
+
+    $lines[] = sprintf($fmt, $this->misc / 1000000, 'misc');
+    $lines[] = sprintf($fmt, $this->duration / 1000000, 'total');
+
+    $lines = implode($separator, $lines);
+    return $lines;
   }
-  return $filtered;
+
+  /**
+   * Filter checks that executed between $minMs and $maxMs.
+   *
+   * @return array
+   *   The format is ['func' => duration].
+   */
+  public function getByDuration(int $minMs = NULL, int $maxMs = NULL): array {
+
+    $filtered = [];
+    foreach ($this->items as $func => $duration) {
+      $duration = $duration / 1000000;
+      if (!empty($minMs) && $duration < $minMs) {
+        continue;
+      }
+      if (!empty($maxMs) && $duration > $maxMs) {
+        continue;
+      }
+      $filtered[$func] = $duration;
+    }
+    return $filtered;
+  }
+
 }
 
-// Return check results as text table.
-function status_tbl(): string {
-  global $status;
-  $lines = [];
-  foreach ($status as $name => $details) {
-    $lines[] = sprintf('%-20s %-10s %s', $name, $details['severity'], $details['message']);
+/**
+ * The Status subsystem keeps track of the results of the checks.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class Status {
+
+  /**
+   * Holds list of statuses.
+   *
+   * @var array
+   */
+  private $items = [];
+
+  /**
+   * Holds name of currently executing context.
+   *
+   * @var string
+   */
+  private $name = 'unset';
+
+  /**
+   * Set context name.
+   *
+   * The idea is that when we start certain procedure then we set context first.
+   * It makes much easier not to repeat the context name in all the subsequent
+   * $status->set() calls.
+   *
+   * @param string $name
+   *   The name of the context. Preferred chars: 'a-z0-9_-'.
+   */
+  public function setName(string $name): void {
+    $this->name = $name;
   }
-  $lines = implode(PHP_EOL, $lines);
-  return $lines;
+
+  /**
+   * Set status for the current context.
+   *
+   * @param string $severity
+   *   One of: 'error', 'warning', 'success', 'disabled'.
+   * @param string $message
+   *   Further details on the severity. Optional.
+   */
+  public function set(string $severity, string $message = ''): void {
+    $this->items[$this->name] = [
+      'severity' => $severity,
+      'message' => $message,
+    ];
+  }
+
+  /**
+   * Filter check results by status code.
+   *
+   * @return array
+   *   The format is ['name' => 'message'].
+   */
+  public function getBySeverity(string $severity): array {
+    $filtered = [];
+    foreach ($this->items as $name => $details) {
+      if ($details['severity'] == $severity) {
+        $filtered[$name] = $details['message'];
+      }
+    }
+    return $filtered;
+  }
+
+  /**
+   * Format check results as text table.
+   *
+   * @param string $separator
+   *   String for glueing lines.
+   *
+   * @return string
+   *   Multi-line table.
+   */
+  public function getTextTable(string $separator): string {
+    $lines = [];
+    foreach ($_status as $name => $details) {
+      $lines[] = sprintf('%-20s %-10s %s', $name, $details['severity'], $details['message']);
+    }
+    $lines = implode($separator, $lines);
+    return $lines;
+  }
+
 }

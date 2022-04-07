@@ -3,9 +3,14 @@
 set -xeuo pipefail
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/app/test/drupal/vendor/bin
 
+# must be different between branches
+# it allows easy branch switching
+# without need for rebuild
+drupal_root=drupal9
+
 # cannot do this during the build
 # because db is not available at the build time.
-cd /app/test/drupal
+cd "/app/test/$drupal_root"
 
 set +e
 drush status bootstrap | grep -q Successful

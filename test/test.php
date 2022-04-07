@@ -1,13 +1,18 @@
 <?php
 
+/**
+ * @file
+ * Test the _ping.php functionality.
+ */
+
 putenv("TESTING=1");
-require('/app/_ping.php');
+require '/app/_ping.php';
 
-chdir('/app/test/drupal/web');
+chdir('/app/test/drupal9/web');
 
-profiling_init(0);
-status_init();
-profiling_measure('bootstrap');
+$profile = new Profile();
+$status = new Status();
+$profile->measure('bootstrap', [$status]);
 
 $checks = [
   'check_db' => 'db',
@@ -19,21 +24,24 @@ $checks = [
   'check_custom_ping' => 'custom-ping',
 ];
 foreach ($checks as $func => $key) {
-  profiling_init(0);
-  status_init();
-  profiling_measure($func);
-  assert_array($key);
-}
-
-function assert_array($id) {
-  global $status;
-  if (count($status) !== 1) {
-    print "$id: Unexpected result count.\n";
-    var_dump($status);
+  $profile = new Profile();
+  $status = new Status();
+  $msg = $profile->measure($func, [$status]);
+  if (!empty($msg)) {
+    print "$id: Crashed.\n";
+    var_dump($msg);
     exit(1);
   }
-  if ($status[$id]['severity'] !== 'success') {
-    print "$id: Unexpected result status.\n";
+  assert_array($key, $status);
+}
+
+/**
+ * Check expected test results.
+ */
+function assert_array($id, object $status) {
+  $items = $status->getBySeverity('success');
+  if (count($items) !== 1) {
+    print "$id: Unexpected result count.\n";
     var_dump($status);
     exit(1);
   }

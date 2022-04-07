@@ -37,6 +37,9 @@ services:
   # varnish
 
 tooling:
+  composer:
+    service: appserver
+    cmd: /usr/local/bin/composer
   test:
     service: appserver
     cmd: php /app/test/test.php

@@ -103,12 +103,13 @@ by creating there a temporary file and removing it.
 ### Custom ping
 
 If a site needs any custom checks, then just create `_ping.custom.php`.
-Use of `status_set_name()` and `status_set()` to define the result.
+Use of `$status->setName()` and `$status->set()` to define the result.
 The PHP file does not need to contain functions, just plain PHP is enough.
 Check it out how other checks are created in the `_ping.php`.
 
-## Testing
+## Ping Development & Testing
 
+- `lando composer install` - Install code quality tools
 - `lando start` - Install basic Drupal and services
 - `lando test` - Execute checks
 

@@ -3,23 +3,29 @@
 set -xeuo pipefail
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
+# must be different between branches
+# it allows easy branch switching
+# without need for rebuild
+drupal_root=drupal9
+
 # d9
 cd /app/test/
 
 set +e
-rm -rf drupal
-chmod -R 777 drupal
-rm -rf drupal
+rm -rf "$drupal_root"
+chmod -R 777 "$drupal_root"
+rm -rf "$drupal_root"
 set -e
 
 # NB! When Composer breaks:
 # https://www.drupal.org/project/drupal/issues/3255749
-composer create-project drupal/recommended-project drupal
+composer create-project drupal/recommended-project "$drupal_root"
 
-chmod 755 /app/test/drupal/web/sites/default
-rm -f /app/test/drupal/web/sites/default/settings.php
-ln -s /app/test/settings.php /app/test/drupal/web/sites/default/settings.php
-ln -s /app/test/_ping.custom.php /app/test/drupal/web/
+web="/app/test/$drupal_root/web"
+chmod 755 "$web/sites/default"
+rm -f "$web/sites/default/settings.php"
+ln -s /app/test/settings.php "$web/sites/default/settings.php"
+ln -s /app/test/_ping.custom.php "$web/"
 
-cd /app/test/drupal
+cd "/app/test/$drupal_root"
 composer require --dev drush/drush
