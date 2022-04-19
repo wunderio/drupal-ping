@@ -7,25 +7,27 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 # it allows easy branch switching
 # without need for rebuild
 drupal_root=drupal9
-
-cd /app
+proj="/app/$drupal_root"
+web="$proj/web"
+sites="$web/sites"
+default="$sites/default"
 
 set +e
-rm -rf "$drupal_root"
-chmod -R 777 "$drupal_root"
-rm -rf "$drupal_root"
+rm -rf "$proj"
+chmod -R 777 "$proj"
+rm -rf "$proj"
 set -e
 
 # NB! When Composer breaks:
 # https://www.drupal.org/project/drupal/issues/3255749
+cd /app
 composer create-project drupal/recommended-project "$drupal_root"
 
-web="/app/$drupal_root/web"
-chmod 755 "$web/sites/default"
-rm -f "$web/sites/default/settings.php"
-ln -s /app/settings.php "$web/sites/default/settings.php"
+chmod 755 "$default"
+rm -f "$default/settings.php"
+ln -s /app/settings.php "$default/"
 ln -s /app/_ping.custom.php "$web/"
 ln -s /app/_ping.php "$web/"
 
-cd "/app/$drupal_root"
+cd "$proj"
 composer require --dev drush/drush
