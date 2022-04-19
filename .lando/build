@@ -3,29 +3,36 @@
 set -xeuo pipefail
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 
-# d7
-cd /app/test/
+# must be different between branches
+# it allows easy branch switching
+# without need for rebuild
+drupal_root=drupal7
+proj="/app/$drupal_root"
+web="$proj/web"
+sites="$web/sites"
+default="$sites/default"
 
 set +e
-rm -rf drupal
-chmod -R 777 drupal
-rm -rf drupal
+rm -rf "$proj"
+chmod -R 777 "$proj"
+rm -rf "$proj"
 set -e
 
 # NB! When Composer breaks:
 # https://www.drupal.org/project/drupal/issues/3255749
-composer create-project drupal-composer/drupal-project:7.x-dev -n drupal
+cd /app
+composer create-project drupal-composer/drupal-project:7.x-dev -n "$drupal_root"
 
 # Fix D7+C2 bug
 set +e
-cp -rv drupal/web/sites/sites/* drupal/web/sites/
-rm -rf drupal/web/sites/sites
+cp -rv "$sites"/sites/* "$sites/"
+rm -rf "$sites/sites"
 set -e
 
-ln -s ../../_ping.custom.php drupal/web/
-cd /app/test/drupal
+ln -s /app/_ping.custom.php "$web/"
+cd "$proj"
 composer require --dev drush/drush:^8
 
-chmod 755 /app/test/drupal/web/sites/default
-rm -f /app/test/drupal/web/sites/default/settings.php
-ln -s /app/test/settings.php /app/test/drupal/web/sites/default/settings.php
+chmod 755 "$default"
+rm -f "$default/settings.php"
+ln -s /app/settings.php "$default/"

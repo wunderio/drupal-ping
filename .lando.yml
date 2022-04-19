@@ -3,6 +3,7 @@ name: ping7
 services:
   appserver:
     type: php:7.4
+    webroot: drupal7/web
     build_as_root:
       - /app/.lando/build_as_root
     build:
@@ -37,8 +38,19 @@ services:
   # varnish
 
 tooling:
+  composer:
+    service: appserver
+    cmd: /usr/local/bin/composer
   test:
     service: appserver
-    cmd: php /app/test/test.php
+    cmd:
+      - php -d memory_limit=-1 ./vendor/bin/phpunit
+  scan:
+    service: appserver
+    cmd:
+      - php -l _ping.custom.php
+      - php -l _ping.php
+      - php -l settings.php
+      - ./vendor/bin/phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php _ping.custom.php settings.php
 
 version: 3.6.2
