@@ -19,10 +19,11 @@
     }
   ],
   "keywords": [
-    "drupal","ping","healthcheck"
+    "drupal",
+    "ping",
+    "healthcheck"
   ],
   "require": {
-    "drupal/core": "~8.0 || ~9.0",
     "koodimonni/composer-dropin-installer": ">=1.0.1"
   },
   "require-dev": {

@@ -103,7 +103,7 @@ Following statuses are issued:
 * `disabled` - No Elasticsearch servers defined in settings
 * `success` - All connections succeed
 * `warning` - At least one connection failed, and all failed connections have been configured with 'severity' = 'warning'
-* `error` - At least one connection failed, and all failed connections have been configured with 'severity' = 'error'
+* `error` - At least one connection failed, and at least one of the failed connections have been configured with 'severity' = 'error'
 
 ### FS Scheme
 

@@ -8,14 +8,7 @@ use \PHPUnit\Framework\TestCase;
 class AppTest extends TestCase {
 
   public static function setUpBeforeClass(): void {
-    if (class_exists('App')) {
-      return;
-    }
-    chdir('/app/drupal9/web');
-    putenv('TESTING=1');
-    require '_ping.php';
-    $b = new BootstrapChecker();
-    $b->check();
+    require_once 'init.php';
   }
 
   /**

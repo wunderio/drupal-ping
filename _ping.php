@@ -389,7 +389,7 @@ abstract class Checker {
    *
    * @var string
    */
-  protected $status = NULL;
+  protected $status = '';
 
   /**
    * The name of the checker.
@@ -414,7 +414,7 @@ abstract class Checker {
   }
 
   /**
-   * Return chekcer status.
+   * Return checker status.
    *
    * @return array
    *   Array of [
@@ -455,7 +455,7 @@ abstract class Checker {
    * The purpose of this function is to catch exceptions.
    */
   public function check(): void {
-    $this->status = NULL;
+    $this->status = '';
     try {
       $this->status = $this->check2();
     }
@@ -687,6 +687,8 @@ class MemcacheChecker extends Checker {
       // Errors.
       return '';
     }
+
+    return 'internal_error';
   }
 
 }
@@ -948,7 +950,7 @@ class FsSchemeCreateChecker extends Checker {
        * Hmm.
        */
       // @codingStandardsIgnoreLine Drupal.NamingConventions.ValidFunctionName.NotCamelCaps
-      function file_uri_scheme($uri) {
+      function file_uri_scheme($uri) { // @phpstan-ignore-line
         return \Drupal::service('file_system')->uriScheme($uri);
       }
 
@@ -1237,13 +1239,6 @@ class Status {
    * @var array
    */
   private $items = [];
-
-  /**
-   * Holds name of currently executing context.
-   *
-   * @var string
-   */
-  private $name;
 
   /**
    * Set status for the current context.

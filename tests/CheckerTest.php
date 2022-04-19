@@ -3,14 +3,7 @@
 use \PHPUnit\Framework\TestCase;
 
 // we need to import Checker class before we can extend it.
-if (!class_exists('App')) {
-  chdir('/app/drupal9/web');
-  putenv('TESTING=1');
-  require '_ping.php';
-  global $_bootstrapChecker;
-  $_bootstrapChecker = new BootstrapChecker();
-  $_bootstrapChecker->check();
-}
+require_once 'init.php';
 
 class DummyChecker extends Checker {
 
