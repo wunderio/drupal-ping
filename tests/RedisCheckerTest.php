@@ -8,15 +8,7 @@ use \PHPUnit\Framework\TestCase;
 class RedisCheckerTest extends TestCase {
 
   public static function setUpBeforeClass(): void {
-    if (class_exists('App')) {
-      return;
-    }
-    chdir('/app/drupal9/web');
-    putenv('TESTING=1');
-    require '_ping.php';
-    global $_bootstrapChecker;
-    $_bootstrapChecker = new BootstrapChecker();
-    $_bootstrapChecker->check();
+    require_once 'init.php';
   }
 
   /**
@@ -24,10 +16,8 @@ class RedisCheckerTest extends TestCase {
    */
   public function testConnectionsFromSettings(): void {
     $settings = [
-      'redis.connection' => [
-        'host' => 'redis',
-        'port' => '1234',
-      ],
+      'redis_client_host' => 'redis',
+      'redis_client_port' => '1234',
     ];
     $data = RedisChecker::connectionsFromSettings($settings);
     $this->assertEquals(['redis', 1234], $data);
@@ -38,9 +28,7 @@ class RedisCheckerTest extends TestCase {
    */
   public function testConnectionsFromSettingsSocket(): void {
     $settings = [
-      'redis.connection' => [
-        'host' => 'redis',
-      ],
+      'redis_client_host' => 'redis',
     ];
     $data = RedisChecker::connectionsFromSettings($settings);
     $this->assertEquals(['redis', NULL], $data);
@@ -71,8 +59,11 @@ class RedisCheckerTest extends TestCase {
   /*
   // Not easy to test.
   public function testCheckSocket(): void {
-    $connection = ['/var/run/socket/redis', NULL];
-    $c = new RedisChecker([]);
+    $settings = [
+      'redis_client_host' => '/var/run/socket/redis',
+    ];
+    $connection = RedisChecker::connectionsFromSettings($settings);
+    $c = new RedisChecker(...$connection);
     $c->check();
     $status = $c->getStatusInfo();
     $this->assertEquals(['success', ''], $status);
@@ -85,10 +76,8 @@ class RedisCheckerTest extends TestCase {
   public function testCheckSuccess(): void {
     $redis = json_decode(getenv('LANDO_INFO'))->redis;
     $settings = [
-      'redis.connection' => [
-        'host' => $redis->internal_connection->host,
-        'port' => $redis->internal_connection->port,
-      ],
+      'redis_client_host' => $redis->internal_connection->host,
+      'redis_client_port' => $redis->internal_connection->port,
     ];
     $connection = RedisChecker::connectionsFromSettings($settings);
     $c = new RedisChecker(...$connection);
@@ -105,10 +94,8 @@ class RedisCheckerTest extends TestCase {
   public function testCheckErrorHost(): void {
     $redis = json_decode(getenv('LANDO_INFO'))->redis;
     $settings = [
-      'redis.connection' => [
-        'host' => 'redis-test',
-        'port' => $redis->internal_connection->port,
-      ],
+      'redis_client_host => 'redis-test',
+      'redis_client_port' => $redis->internal_connection->port,
     ];
     $connection = RedisChecker::connectionsFromSettings($settings);
     $c = new RedisChecker(...$connection);
@@ -124,10 +111,8 @@ class RedisCheckerTest extends TestCase {
   public function testCheckErrorHost(): void {
     $redis = json_decode(getenv('LANDO_INFO'))->redis;
     $settings = [
-      'redis.connection' => [
-        'host' => $redis->internal_connection->host,
-        'port' => $redis->internal_connection->port + 1,
-      ],
+      'redis_client_host' => $redis->internal_connection->host,
+      'redis_client_port' => $redis->internal_connection->port + 1,
     ];
     $connection = RedisChecker::connectionsFromSettings($settings);
     $c = new RedisChecker(...$connection);

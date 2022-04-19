@@ -29,6 +29,7 @@ cp -rv "$sites"/sites/* "$sites/"
 rm -rf "$sites/sites"
 set -e
 
+ln -s /app/_ping.php "$web/"
 ln -s /app/_ping.custom.php "$web/"
 cd "$proj"
 composer require --dev drush/drush:^8

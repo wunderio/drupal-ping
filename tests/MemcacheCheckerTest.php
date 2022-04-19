@@ -8,15 +8,7 @@ use \PHPUnit\Framework\TestCase;
 class MemcacheCheckerTest extends TestCase {
 
   public static function setUpBeforeClass(): void {
-    if (class_exists('App')) {
-      return;
-    }
-    chdir('/app/drupal9/web');
-    putenv('TESTING=1');
-    require '_ping.php';
-    global $_bootstrapChecker;
-    $_bootstrapChecker = new BootstrapChecker();
-    $_bootstrapChecker->check();
+    require_once 'init.php';
   }
 
   /**
@@ -33,11 +25,9 @@ class MemcacheCheckerTest extends TestCase {
    */
   public function testConnectionsFromSettings(): void {
     $settings = [
-      'memcache' => [
-        'servers' => [
-          'host1:1234' => 'test1',
-          'host2:2345' => 'test2',
-        ],
+      'memcache_servers' => [
+        'host1:1234' => 'test1',
+        'host2:2345' => 'test2',
       ],
     ];
     $data = MemcacheChecker::connectionsFromSettings($settings);
@@ -84,7 +74,7 @@ class MemcacheCheckerTest extends TestCase {
     $memcached = json_decode(getenv('LANDO_INFO'))->memcached;
     $host = $memcached->internal_connection->host;
     $port = $memcached->internal_connection->port;
-    $settings['memcache']['servers'] = [
+    $settings['memcache_servers'] = [
       "$host:$port" => 'default',
     ];
     $connections = MemcacheChecker::connectionsFromSettings($settings);
@@ -101,7 +91,7 @@ class MemcacheCheckerTest extends TestCase {
     $memcached = json_decode(getenv('LANDO_INFO'))->memcached;
     $host = $memcached->internal_connection->host;
     $port = 64000; // $memcached->internal_connection->port;
-    $settings['memcache']['servers'] = [
+    $settings['memcache_servers'] = [
       "$host:$port" => 'default',
     ];
     $connections = MemcacheChecker::connectionsFromSettings($settings);
@@ -118,7 +108,7 @@ class MemcacheCheckerTest extends TestCase {
     $memcached = json_decode(getenv('LANDO_INFO'))->memcached;
     $host = 'localhost'; // $memcached->internal_connection->host;
     $port = $memcached->internal_connection->port;
-    $settings['memcache']['servers'] = [
+    $settings['memcache_servers'] = [
       "$host:$port" => 'default',
     ];
     $connections = MemcacheChecker::connectionsFromSettings($settings);

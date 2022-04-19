@@ -51,6 +51,8 @@ tooling:
       - php -l _ping.custom.php
       - php -l _ping.php
       - php -l settings.php
-      - ./vendor/bin/phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php _ping.custom.php settings.php
+      - php -l phpstan-drupal7-autoload.php
+      - ./vendor/bin/phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php _ping.custom.php settings.php phpstan-drupal7-autoload.php
+      - ./vendor/bin/phpstan analyze --level=5 --autoload-file phpstan-drupal7-autoload.php -- _ping.php _ping.custom.php settings.php phpstan-drupal7-autoload.php
 
 version: 3.6.2

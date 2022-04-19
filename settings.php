@@ -51,6 +51,7 @@ $conf['ping_elasticsearch_connections'] = [
 ];
 
 // For debugging add "?debug=test" to the query - 4 letters of the hash.
+// @codingStandardsIgnoreLine DrupalPractice.CodeAnalysis.VariableAnalysis.UnusedVariable
 $drupal_hash_salt = 'testing';
 
 // @codingStandardsIgnoreLine DrupalPractice.Commenting.CommentEmptyLine.SpacingAfter
