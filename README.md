@@ -107,8 +107,11 @@ Following statuses are issued:
 
 ### FS Scheme
 
-Check if public file system is functional
-by creating there a temporary file and removing it.
+Consists of 3 tests:
+
+- Check if a file can be created within the public filesystem.
+- Check if the test-file can be deleted from the public filesystem.
+- Check if there are any leftover test-files, and remove them.
 
 ### Custom ping
 

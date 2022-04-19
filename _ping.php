@@ -84,6 +84,8 @@ class App {
 
     $check = $this->check('FsSchemeDeleteChecker', [$file]);
 
+    $check = $this->check('FsSchemeCleanupChecker');
+
     $check = $this->check('CustomPingChecker');
 
     /*
@@ -992,6 +994,84 @@ class FsSchemeDeleteChecker extends Checker {
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
       $this->errors[] = "file={$this->file} - Could not delete newly created file in the files directory.";
+      return '';
+    }
+
+    return 'success';
+  }
+
+}
+
+/**
+ * Check if there are leftover files in public files, remove them.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class FsSchemeCleanupChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'fs-scheme-cleanup';
+
+  /**
+   * Public files dir.
+   *
+   * @var string
+   */
+  protected $path;
+
+  /**
+   * Constructor for file cleanup.
+   *
+   * @param string $path
+   *   Optional public files path. Needed for testing.
+   */
+  public function __construct(string $path = NULL) {
+
+    // For testing.
+    if (!empty($path)) {
+      $this->path = $path;
+      return;
+    }
+
+    // Get the real path of the files uri.
+    $this->path = variable_get('file_directory_path', conf_path() . '/files');
+  }
+
+  /**
+   * Check: Filesystem item deletion.
+   *
+   * Note, it depends on 'Filesystem item creation' being executed before.
+   */
+  protected function check2(): string {
+
+    $pattern = "{$this->path}/status_check_*";
+    $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
+    if ($files === FALSE) {
+      $this->errors[] = "pattern=$pattern Unable to list files.";
+      return '';
+    }
+
+    $removed = 0;
+    foreach ($files as $file) {
+      if (!is_file($file)) {
+        continue;
+      }
+      if (filesize($file) !== 0) {
+        continue;
+      }
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      if (!unlink($file)) {
+        $this->errors[] = "file=$file - Could not delete file in the public files directory.";
+        return '';
+      }
+      $removed++;
+    }
+
+    if ($removed > 0) {
+      $this->errors[] = "removed=$removed Orphaned fs check files deleted.";
       return '';
     }
 
