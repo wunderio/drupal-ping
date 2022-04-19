@@ -6,7 +6,7 @@ This script can be used for Drupal7 health-checks.
 
 ## Installation
 
-Add this to your `composer.json`:
+1. Add this to your `composer.json`:
 
 ```json
 {
@@ -18,17 +18,27 @@ Add this to your `composer.json`:
 }
 ```
 
-Then install the composer package as usual with:
+2. Then install the composer package as usual with:
 
 ```
 composer require wunderio/drupal-ping:7.x-dev
 ```
 
-## v2.0
+3. Add `_ping.php` into the main project's `.gitignore`.
+
+## Changelog
+
+### v2.1
+
+- Refactor code into Classes
+- Add comprehensive test coverage
+- Fix coding standard issues
+
+### v2.0
 
 Breaking Changes!
 
-- `composer.json`: `extra`: `dropin-paths` has a syntax!
+- `composer.json`: `extra`: `dropin-paths` has a new syntax!
 - `settings.php`: Elasticsearch has additional syntax for testing. See below.
 
 ## Usage
@@ -48,7 +58,7 @@ User #1 record is fetched from the database.
 Assumes `$settings['memcache']['servers']` presence in the `settings.php`.
 
 Following statuses are issued:
-* `disable` - No memcached servers defined in settings
+* `disabled` - No memcached servers defined in settings
 * `success` - All connections succeed
 * `warning` - At least one connection succeeds, at least one connection fails
 * `error` - All connections fail
@@ -90,10 +100,10 @@ The connection is establised by PHP `curl`, and then `/_cluster/health` is
 being visited. The check expects to get `green` status in the response.
 
 Following statuses are issued:
-* `disable` - No Elasticsearch servers defined in settings
+* `disabled` - No Elasticsearch servers defined in settings
 * `success` - All connections succeed
-* `warning` - At least one connection succeeds, at least one connection fails
-* `$['severity']` - All connections fail
+* `warning` - At least one connection failed, and all failed connections have been configured with 'severity' = 'warning'
+* `error` - At least one connection failed, and at least one of the failed connections have been configured with 'severity' = 'error'
 
 ### FS Scheme
 
@@ -103,19 +113,30 @@ by creating there a temporary file and removing it.
 ### Custom ping
 
 If a site needs any custom checks, then just create `_ping.custom.php`.
-Use of `status_set_name()` and `status_set()` to define the result.
+Use of `$status->setName()` and `$status->set()` to define the result.
 The PHP file does not need to contain functions, just plain PHP is enough.
 Check it out how other checks are created in the `_ping.php`.
 
-## Testing
+## Ping Development & Testing
 
+- `lando composer install` - Install code quality tools
 - `lando start` - Install basic Drupal and services
-- `lando test` - Execute checks
+- `lando test` - Execute phpunit tests
+- `lando scan` - Run coding standard checks
+
+Note: the Lando setup is defined so that D7 and D89 branched can be easily switched
+both running their own own setup. Drupal and composer installations wont clash.
+They have separate dirs.
+
+`_ping.php` can be accessed over the lando url.
+For example `http://localhost:51418/_ping.php`.
+It can also be accessed from the shell `cd /app/drupal9/web ; php _ping.php`.
+From the shell output the debug code can be attained.
 
 ## Maintainers
 
-[Janne Koponen](https://github.com/tharna)
-[Ragnar Kurm](https://github.com/ragnarkurmwunder)
+- [Janne Koponen](https://github.com/tharna)
+- [Ragnar Kurm](https://github.com/ragnarkurmwunder)
 
 ## License
 
