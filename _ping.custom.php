@@ -1,3 +1,8 @@
 <?php
 
-# just a test script
+/**
+ * @file
+ * This is custom ping code.
+ *
+ * Note: tests can mess up this file - disregard the changes.
+ */

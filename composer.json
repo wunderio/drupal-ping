@@ -24,5 +24,16 @@
   "require": {
     "drupal/drupal": "~7.0",
     "koodimonni/composer-dropin-installer": ">=1.0.1"
+  },
+  "require-dev": {
+    "wunderio/code-quality": "^2.2",
+    "phpunit/phpunit": "^9.5"
+  },
+  "config": {
+    "allow-plugins": {
+      "koodimonni/composer-dropin-installer": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpro/grumphp": true
+    }
   }
 }

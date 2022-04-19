@@ -1,0 +1,58 @@
+<?php
+
+use Drupal\Core\Database\Database;
+use \PHPUnit\Framework\TestCase;
+
+/**
+ * @coversDefaultClass \DbChecker
+ */
+class DbCheckerTest extends TestCase {
+
+  public static function setUpBeforeClass(): void {
+    if (class_exists('App')) {
+      return;
+    }
+    chdir('/app/drupal9/web');
+    putenv('TESTING=1');
+    require '_ping.php';
+    global $_bootstrapChecker;
+    $_bootstrapChecker = new BootstrapChecker();
+    $_bootstrapChecker->check();
+  }
+
+  /**
+   * Make sure after the tests everything is intact.
+   */
+  public static function tearDownAfterClass(): void {
+    Database::getConnection()
+      ->query('update {users} set uid = 1 WHERE uid = 100')
+    ;
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckSuccess(): void {
+    Database::getConnection()
+      ->query('update {users} set uid = 1 WHERE uid = 100')
+    ;
+    $c = new DbChecker();
+    $c->check();
+    $status = $c->getStatusInfo();
+    $this->assertEquals(['success', ''], $status);
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckError(): void {
+    Database::getConnection()
+      ->query('update {users} set uid = 100 WHERE uid = 1')
+    ;
+    $c = new DbChecker();
+    $c->check();
+    $status = $c->getStatusInfo();
+    $this->assertEquals(['error', 'result_count=0 expected=1 Master database invalid results.'], $status);
+  }
+
+}
