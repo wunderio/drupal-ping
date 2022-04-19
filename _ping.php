@@ -89,6 +89,8 @@ class App {
 
     $check = $this->check('FsSchemeDeleteChecker', [$file]);
 
+    $check = $this->check('FsSchemeCleanupChecker');
+
     $check = $this->check('CustomPingChecker');
 
     /*
@@ -534,6 +536,20 @@ class BootstrapChecker extends Checker {
     // And save them for other functions.
     $this->settings = Settings::getAll();
 
+    // Define file_uri_scheme if it does not exist, it's required by realpath().
+    // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
+    if (!function_exists('file_uri_scheme')) {
+
+      /**
+       * Hmm.
+       */
+      // @codingStandardsIgnoreLine Drupal.NamingConventions.ValidFunctionName.NotCamelCaps
+      function file_uri_scheme($uri) { // @phpstan-ignore-line
+        return \Drupal::service('file_system')->uriScheme($uri);
+      }
+
+    }
+
     return 'success';
   }
 
@@ -945,20 +961,6 @@ class FsSchemeCreateChecker extends Checker {
    */
   protected function check2(): string {
 
-    // Define file_uri_scheme if it does not exist, it's required by realpath().
-    // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
-    if (!function_exists('file_uri_scheme')) {
-
-      /**
-       * Hmm.
-       */
-      // @codingStandardsIgnoreLine Drupal.NamingConventions.ValidFunctionName.NotCamelCaps
-      function file_uri_scheme($uri) { // @phpstan-ignore-line
-        return \Drupal::service('file_system')->uriScheme($uri);
-      }
-
-    }
-
     // Get current defined scheme.
     $scheme = \Drupal::config('system.file')->get('default_scheme');
 
@@ -1022,6 +1024,87 @@ class FsSchemeDeleteChecker extends Checker {
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
       $this->errors[] = "file={$this->file} - Could not delete newly created file in the files directory.";
+      return '';
+    }
+
+    return 'success';
+  }
+
+}
+
+/**
+ * Check if there are leftover files in public files, remove them.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class FsSchemeCleanupChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'fs-scheme-cleanup';
+
+  /**
+   * Public files dir.
+   *
+   * @var string
+   */
+  protected $path;
+
+  /**
+   * Constructor for file cleanup.
+   *
+   * @param string $path
+   *   Optional public files path. Needed for testing.
+   */
+  public function __construct(string $path = NULL) {
+
+    // For testing.
+    if (!empty($path)) {
+      $this->path = $path;
+      return;
+    }
+
+    // Get current defined scheme.
+    $scheme = \Drupal::config('system.file')->get('default_scheme');
+
+    // Get the real path of the files uri.
+    $this->path = \Drupal::service('file_system')->realpath($scheme . '://');
+  }
+
+  /**
+   * Check: Filesystem item deletion.
+   *
+   * Note, it depends on 'Filesystem item creation' being executed before.
+   */
+  protected function check2(): string {
+
+    $pattern = "{$this->path}/status_check_*";
+    $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
+    if ($files === FALSE) {
+      $this->errors[] = "pattern=$pattern Unable to list files.";
+      return '';
+    }
+
+    $removed = 0;
+    foreach ($files as $file) {
+      if (!is_file($file)) {
+        continue;
+      }
+      if (filesize($file) !== 0) {
+        continue;
+      }
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      if (!unlink($file)) {
+        $this->errors[] = "file=$file - Could not delete file in the public files directory.";
+        return '';
+      }
+      $removed++;
+    }
+
+    if ($removed > 0) {
+      $this->errors[] = "removed=$removed Orphaned fs check files deleted.";
       return '';
     }
 
