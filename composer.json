@@ -26,7 +26,8 @@
     "koodimonni/composer-dropin-installer": ">=1.0.1"
   },
   "require-dev": {
-    "wunderio/code-quality": "^2.2"
+    "wunderio/code-quality": "^2.2",
+    "phpunit/phpunit": "^9.5"
   },
   "config": {
     "allow-plugins": {

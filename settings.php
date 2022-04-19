@@ -5,6 +5,14 @@
  * This is a settings.php for testing _ping.php functionality.
  */
 
+if (empty($settings)) {
+  $settings = [];
+}
+
+if (empty($databases)) {
+  $databases = [];
+}
+
 // DB.
 $db = json_decode(getenv('LANDO_INFO'))->mariadb;
 $databases['default']['default'] = [
@@ -46,4 +54,5 @@ $settings['ping_elasticsearch_connections'] = [
 // For debugging add "?debug=test" to the query - 4 letters of the hash.
 $settings['hash_salt'] = 'testing';
 
+// @codingStandardsIgnoreLine DrupalPractice.Commenting.CommentEmptyLine.SpacingAfter
 // Ignore settings added by Drupal install below this line.

@@ -8,191 +8,134 @@
  * FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
  */
 
+declare(strict_types=1);
+
 use Drupal\Core\Database\Database;
 use Drupal\Core\DrupalKernel;
 use Drupal\Core\Site\Settings;
 use Symfony\Component\HttpFoundation\Request;
 
-main();
-
-/**
- * The main function.
- */
-function main(): void {
-
-  /*
-   * Setup
-   */
-
-  $profile = new Profile();
-  $status = new Status();
-
-  if (!empty(getenv('TESTING'))) {
-    return;
-  }
-
-  setup_shutdown();
-  disable_newrelic();
-  // Will be corrected later when not failing.
-  set_header(503);
-
-  /*
-   * Actual stuff.
-   */
-
-  foreach ([
-    'bootstrap',
-    'check_db',
-    'check_memcache',
-    'check_redis',
-    'check_elasticsearch',
-    'check_fs_scheme_create',
-    'check_fs_scheme_delete',
-    'check_custom_ping',
-  ] as $func) {
-    // Although checks provide the name as the first thing,
-    // just for safety if any of the checks fails too early.
-    $status->setName($func);
-    $msg = $profile->measure($func, [$status]);
-    if (!empty($msg)) {
-      $status->set('error', $msg);
-    }
-  }
-
-  /*
-   * Finish.
-   */
-
-  $profile->stop();
-
-  log_slow_checks($profile);
-
-  $warnings = $status->getBySeverity('warning');
-  log_errors($warnings, 'warning');
-
-  $errors = $status->getBySeverity('error');
-  finish($status, $profile, $errors);
-
+if (empty(getenv('TESTING'))) {
+  $app = new App();
+  $app->run();
   // Exit immediately.
   // Note the shutdown function registered at the beginning.
   exit();
 }
 
-/*
- * Setup & Finish.
- */
-
 /**
- * Custom shutdown.
- *
- * Register our shutdown function so that no other shutdown functions run
- * before this one.  This shutdown function calls exit(), immediately
- * short-circuiting any other shutdown functions, such as those registered by
- * the devel.module for statistics.
+ * The Application itself.
  */
-function setup_shutdown(): void {
-  // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FunctionHandlingFunctions.WarnFunctionHandling
-  register_shutdown_function(function () {
-    exit();
-  });
-}
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class App {
 
-/**
- * Disable NewRelic.
- *
- * We want to ignore _ping.php from New Relic statistics.
- * _ping.php skews the overall statistics significantly.
- */
-function disable_newrelic(): void {
-  if (extension_loaded('newrelic')) {
-    newrelic_ignore_transaction();
-  }
-}
+  /**
+   * Profile object.
+   *
+   * @var object
+   */
+  private $profile;
 
-/**
- * Set response header.
- *
- * It can be called multiple times.
- * Originally the error status can be set.
- * But if the code finishes without errors,
- * then we can override that with successful status.
- *
- * @param int $code
- *   The status code, for ex 200, 404, etc.
- *
- * @return string
- *   The status message string.
- */
-function set_header(int $code): string {
-  $map = [
-    200 => 'OK',
-    500 => 'Internal Server Error',
-    503 => 'Service Unavailable',
-  ];
-  $msg = $map[$code];
-  $header = sprintf('HTTP/1.1 %d %s', $code, $msg);
-  header($header);
-  return $msg;
-}
+  /**
+   * Status object.
+   *
+   * @var object
+   */
+  private $status;
 
-/**
- * Log errors according to the environment.
- *
- * We recognize following envs:
- * - silta -> stderr.
- * - lando -> stderr.
- * - the rest -> syslog().
- */
-function log_errors(array $errors, string $category): void {
+  /**
+   * The main function.
+   */
+  public function run(): void {
 
-  if (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
-    $logger = function (string $msg) {
-      error_log($msg);
-    };
-  }
-  else {
-    $logger = function (string $msg) {
-      syslog(LOG_ERR | LOG_LOCAL6, $msg);
-    };
-  }
+    /*
+     * Setup
+     */
 
-  foreach ($errors as $name => $message) {
-    $logger("ping: $category: $name: $message");
-  }
-}
+    // Start profiling as early as possible.
+    $this->profile = new Profile();
+    $this->status = new Status();
 
-/**
- * Deliver the results.
- *
- * It performs following things:
- * - Take care status code.
- * - Deliver the ping status.
- * - Print debug info if requested.
- */
-function finish(object $status, object $profile, array $errors = []): void {
+    $this->setupShutdown();
+    $this->disableNewrelic();
+    // Will be corrected later when not failing.
+    $this->setHeader(503);
 
-  if (!empty($errors)) {
-    log_errors($errors, 'error');
-    $code = 500;
-    $msg = 'INTERNAL ERROR';
-  }
-  else {
-    $code = 200;
-    $msg = 'CONGRATULATIONS';
-  }
-  set_header($code);
-  // Split up this message, to prevent the remote chance of monitoring software
-  // reading the source code if mod_php fails and then matching the string.
-  print "$msg $code";
+    /*
+     * Actual stuff.
+     */
 
-  if (!is_debug()) {
-    return;
-  }
+    $check = $this->check('BootstrapChecker');
 
-  $status_tbl = $status->getTextTable(PHP_EOL);
-  $profiling_tbl = $profile->getTextTable(PHP_EOL);
-  print <<<TXT
-<br/>
+    $settings = $check->getSettings();
+
+    $check = $this->check('DbChecker');
+
+    $servers = MemcacheChecker::connectionsFromSettings($settings);
+
+    $check = $this->check('MemcacheChecker', [$servers]);
+
+    [$host, $port] = RedisChecker::connectionsFromSettings($settings);
+
+    $check = $this->check('RedisChecker', [$host, $port]);
+
+    $connections = ElasticsearchChecker::connectionsFromSettings($settings);
+
+    $check = $this->check('ElasticsearchChecker', [$connections]);
+
+    $check = $this->check('FsSchemeCreateChecker');
+
+    $file = $check->getFile();
+
+    $check = $this->check('FsSchemeDeleteChecker', [$file]);
+
+    $check = $this->check('CustomPingChecker');
+
+    /*
+     * Finish.
+     */
+
+    $this->profile->stop();
+
+    $slow = $this->getSlow($this->profile);
+    $this->logErrors($slow, 'slow');
+
+    $warnings = $this->status->getBySeverity('warning');
+    $this->logErrors($warnings, 'warning');
+
+    $errors = $this->status->getBySeverity('error');
+
+    if (!empty($errors)) {
+      $this->logErrors($errors, 'error');
+      $code = 500;
+      $msg = 'INTERNAL ERROR';
+    }
+    else {
+      $code = 200;
+      $msg = 'CONGRATULATIONS';
+    }
+    $this->setHeader($code);
+    // Split up this message, to prevent the remote chance
+    // of monitoring software reading the source code
+    // if mod_php fails and then matching the string.
+    print "$msg $code" . PHP_EOL;
+
+    $code = $this->getDebugCode($settings);
+    if (!$this->isDebug($code) && !$this->isCli()) {
+      return;
+    }
+
+    if ($this->isCli()) {
+      print <<<TXT
+
+<p>Debug code: $code</p>
+
+TXT;
+    }
+
+    $status_tbl = $this->status->getTextTable(PHP_EOL);
+    $profiling_tbl = $this->profile->getTextTable(PHP_EOL);
+    print <<<TXT
 
 <pre>
 $status_tbl
@@ -201,41 +144,220 @@ $status_tbl
 <pre>
 $profiling_tbl
 </pre>
+
 TXT;
-}
-
-/**
- * Log all slow requests.
- *
- * Fetch all slow requests from the profiling system,
- * and log them.
- */
-function log_slow_checks(object $profile): void {
-  $slow = $profile->getByDuration(1000.0, NULL);
-  foreach ($slow as &$value) {
-    $value = "duration=$value ms";
-  }
-  log_errors($slow, 'slow');
-}
-
-/**
- * Detect if debug information should be provided on request.
- *
- * Currently it is matching '?debug=hash',
- * where the 'hash' is the 4 first letters of the Drupal hash salt.
- */
-function is_debug(): bool {
-
-  $debug = $_GET['debug'] ?? NULL;
-  if (empty($debug)) {
-    return FALSE;
   }
 
-  global $_drupal_settings;
-  $hash = $_drupal_settings['hash_salt'] ?? '';
-  $hash = substr($hash, 0, 4);
+  /**
+   * Custom shutdown.
+   *
+   * Register our shutdown function so that no other shutdown functions run
+   * before this one.  This shutdown function calls exit(), immediately
+   * short-circuiting any other shutdown functions, such as those registered by
+   * the devel.module for statistics.
+   */
+  public function setupShutdown(): void {
+    // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FunctionHandlingFunctions.WarnFunctionHandling
+    register_shutdown_function(function () {
+      exit();
+    });
+  }
 
-  return $debug == $hash;
+  /**
+   * Perform the check.
+   *
+   * @param string $class
+   *   The checker class.
+   * @param array $args
+   *   The args for checker constructor.
+   *
+   * @return object
+   *   Return the checker object.
+   */
+  public function check(string $class, array $args = []): object {
+    $checker = new $class(...$args);
+    $this->profile->measure([$checker, 'check'], $checker->getName());
+    [$s, $i] = $checker->getStatusInfo();
+    $name = $checker->getName();
+    $this->status->set($name, $s, $i);
+    return $checker;
+  }
+
+  /**
+   * Disable NewRelic.
+   *
+   * We want to ignore _ping.php from New Relic statistics.
+   * _ping.php skews the overall statistics significantly.
+   */
+  public function disableNewrelic(): void {
+    if (extension_loaded('newrelic')) {
+      newrelic_ignore_transaction();
+    }
+  }
+
+  /**
+   * Set response header.
+   *
+   * It can be called multiple times.
+   * Originally the error status can be set.
+   * But if the code finishes without errors,
+   * then we can override that with successful status.
+   *
+   * @param int $code
+   *   The status code, for ex 200, 404, etc.
+   *
+   * @return string
+   *   The status message string.
+   */
+  public function setHeader(int $code): string {
+    $map = [
+      200 => 'OK',
+      500 => 'Internal Server Error',
+      503 => 'Service Unavailable',
+    ];
+    $msg = $map[$code];
+    $header = sprintf('HTTP/1.1 %d %s', $code, $msg);
+    header($header);
+    return $msg;
+  }
+
+  /**
+   * Log errors according to the environment.
+   *
+   * We recognize following envs:
+   * - silta -> stderr.
+   * - lando -> stderr.
+   * - the rest -> syslog().
+   */
+  public function logErrors(array $errors, string $category): void {
+
+    if (!empty(getenv('TESTING'))) {
+      $logger = function (string $msg) {
+        global $_logs;
+        if (empty($_logs)) {
+          $_logs = [];
+        }
+        $_logs[] = $msg;
+      };
+    }
+    elseif (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
+      $logger = function (string $msg) {
+        error_log($msg);
+      };
+    }
+    else {
+      $logger = function (string $msg) {
+        syslog(LOG_ERR | LOG_LOCAL6, $msg);
+      };
+    }
+
+    foreach ($errors as $name => $message) {
+      $logger("ping: $category: $name: $message");
+    }
+  }
+
+  /**
+   * Log all slow requests.
+   *
+   * Fetch all slow requests from the profiling system,
+   * and log them.
+   *
+   * @return array
+   *   return array of slow messages.
+   */
+  public function getSlow(object $profile): array {
+    $slow = $profile->getByDuration(1000, NULL);
+    foreach ($slow as &$value) {
+      $value = "duration=$value ms";
+    }
+    return $slow;
+  }
+
+  /**
+   * Compute Debug Code.
+   *
+   * This is needed to limit access to debug info over the web.
+   * Many methods are tried in sequence to define the code.
+   *
+   * @param array $settings
+   *   The Drupal settings.
+   *
+   * @return string
+   *   Access code.
+   */
+  public function getDebugCode(array $settings): string {
+
+    // $settings['ping_debug'].
+    if (!empty($settings['ping_debug'])) {
+      $code = $settings['ping_debug'];
+      return $code;
+    }
+
+    // Echo "$PROJECT_NAME-$ENVIRONMENT_NAME" | md5sum.
+    if (!empty(getenv('SILTA_CLUSTER'))) {
+      $proj = getenv('PROJECT_NAME');
+      $env = getenv('ENVIRONMENT_NAME');
+      $code = md5("$proj-$env");
+      return $code;
+    }
+
+    // Echo "$DB_HOST_DRUPAL-$DB_NAME_DRUPAL-$DB_PASS_DRUPAL-$DB_PORT_DRUPAL-$DB_USER_DRUPAL"
+    // | md5sum.
+    if (!empty(getenv('DB_NAME_DRUPAL'))) {
+      $host = getenv('DB_HOST_DRUPAL');
+      $name = getenv('DB_NAME_DRUPAL');
+      $pass = getenv('DB_PASS_DRUPAL');
+      $port = getenv('DB_PORT_DRUPAL');
+      $user = getenv('DB_USER_DRUPAL');
+      $code = md5("$host-$name-$pass-$port-$user");
+      return $code;
+    }
+
+    // Md5($settings['hash_salt']).
+    if (!empty($settings['hash_salt'])) {
+      $code = md5($settings['hash_salt']);
+      return $code;
+    }
+
+    // Hostname | md5sum.
+    $code = gethostname();
+    $code = md5($code);
+    return $code;
+  }
+
+  /**
+   * Detect if we are running in CLI mode.
+   *
+   * @return bool
+   *   True = CLI mode, False = WEB mode.
+   */
+  public function isCli(): bool {
+    $isCli = php_sapi_name() === 'cli';
+    return $isCli;
+  }
+
+  /**
+   * Detect if debug information should be provided on request.
+   *
+   * Currently it is matching '?debug=code'
+   *
+   * @param string $code
+   *   The code to be checked if present in the request.
+   *
+   * @return bool
+   *   Return if we need to emit debugging info.
+   */
+  public function isDebug(string $code): bool {
+
+    // @codingStandardsIgnoreLine DrupalPractice.Variables.GetRequestData.SuperglobalAccessedWithVar
+    $debug = $_GET['debug'] ?? NULL;
+    if (empty($debug)) {
+      return FALSE;
+    }
+
+    return $debug == $code;
+  }
+
 }
 
 /*
@@ -243,320 +365,706 @@ function is_debug(): bool {
  */
 
 /**
- * Drupal bootstrap.
- *
- * This is a prerequisite for the rest of the checks.
+ * Abstract Checker class.
  */
-function bootstrap(object $status): void {
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+abstract class Checker {
 
-  $autoloader = require_once 'autoload.php';
-  $request = Request::createFromGlobals();
-  $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');
-  $kernel->boot();
+  /**
+   * Warnings happened during the check.
+   *
+   * @var array
+   */
+  protected $warnings = [];
 
-  // Define DRUPAL_ROOT if it's not yet defined by bootstrap.
-  if (!defined('DRUPAL_ROOT')) {
-    define('DRUPAL_ROOT', getcwd());
-  }
+  /**
+   * Errors happened during the check.
+   *
+   * @var array
+   */
+  protected $errors = [];
 
-  // Get current settings.
-  // And save them for other functions.
-  global $_drupal_settings;
-  $_drupal_settings = Settings::getAll();
-}
+  /**
+   * The status for the check result.
+   *
+   * @var string
+   */
+  protected $status = NULL;
 
-/**
- * Check: Main database connectivity.
- */
-function check_db(object $status): void {
-
-  $status->setName('db');
-
-  // Check that the main database is active.
-  $result = Database::getConnection()
-    ->query('SELECT * FROM {users} WHERE uid = 1')
-    ->fetchAllKeyed();
-
-  $count = count($result);
-  if ($count > 0) {
-    $status->set('success');
-  }
-  else {
-    $status->set('error', "result_count=$count expected=1 Master database invalid results.");
-  }
-}
-
-/**
- * Check: Memcache connectivity.
- *
- * Verify that all memcache instances are running on this server.
- * There are 3 statuses:
- * - 'success' - all instances are available.
- * - 'warning' - 0<x<all instances are not available.
- * - 'error' - all instances are unavailable.
- */
-function check_memcache(object $status): void {
-
-  global $_drupal_settings;
-
-  $status->setName('memcache');
-
-  $servers = $_drupal_settings['memcache']['servers'] ?? NULL;
-  if (empty($servers)) {
-    $status->set('disabled');
-    return;
-  }
-
-  $good_count = 0;
-  $bad_count = 0;
-  $errors = [];
-
-  // Loop through the defined servers.
-  foreach ($servers as $address => $bin) {
-
-    [$host, $port] = explode(':', $address);
-
-    // We are not relying on Memcache or Memcached classes.
-    // For speed and simplicity we use just basic networking.
-    $socket = fsockopen($host, $port, $errno, $errstr, 1);
-    if (!empty($errstr)) {
-      $errors[] = "host=$host port=$port - $errstr";
-      $bad_count++;
-      continue;
-    }
-    fwrite($socket, "stats\n");
-    // Just check the first line of the reponse.
-    $line = fgets($socket);
-    if (!preg_match('/^STAT /', $line)) {
-      $errors[] = "host=$host port=$port response='$line' - Unexpected response";
-      $bad_count++;
-      continue;
-    }
-    fclose($socket);
-
-    $good_count++;
-  }
-
-  if ($good_count > 0 && $bad_count < 1) {
-    $status->set('success');
-    return;
-  }
-
-  if ($good_count > 0 && $bad_count > 0) {
-    $status->set('warning', implode('; ', $errors));
-    return;
-  }
-
-  if ($good_count < 1 && $bad_count > 0) {
-    $status->set('error', implode('; ', $errors));
-    return;
-  }
-}
-
-/**
- * Check: Redis connectivity.
- *
- * Handles both:
- * - TCP/IP - both host and port are defined.
- * - Unix Socket - only host is defined as path.
- */
-function check_redis(object $status): void {
-
-  global $_drupal_settings;
-
-  $status->setName('redis');
-
-  $host = $_drupal_settings['redis.connection']['host'] ?? NULL;
-  $port = $_drupal_settings['redis.connection']['port'] ?? NULL;
-
-  if (empty($host) || empty($port)) {
-    $status->set('disabled');
-    return;
-  }
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = '';
 
   /*
-   * In case of a socket,
-   * only host is defined.
+   * Configure the checker.
+   * abstract public function __construct(...config...);
    */
 
-  // Use PhpRedis, PRedis is outdated.
-  $redis = new \Redis();
-  if ($redis->connect($host, $port)) {
-    $status->set('success');
+  /**
+   * Get human-readable checker name.
+   *
+   * @return string
+   *   Return human-readable checker name.
+   */
+  public function getName(): string {
+    return $this->name;
   }
-  else {
-    $status->set('error', "host=$host port=$port - unable to connect");
+
+  /**
+   * Return chekcer status.
+   *
+   * @return array
+   *   Array of [
+   *     (string) $status ('success'|'disabled'|'error'|'warning'),
+   *     (string) $info (warning or error info)
+   *   ]
+   */
+  public function getStatusInfo(): array {
+
+    $status = '';
+    $info = [];
+
+    if (!empty($this->status)) {
+      $status = $this->status;
+      goto ret;
+    }
+
+    if (!empty($this->warnings)) {
+      $status = 'warning';
+      $info = array_merge($info, $this->warnings);
+    }
+
+    if (!empty($this->errors)) {
+      $status = 'error';
+      $info = array_merge($info, $this->errors);
+    }
+
+    ret:
+    return [
+      $status,
+      implode('; ', $info),
+    ];
   }
+
+  /**
+   * Safety wrapper for the check function.
+   *
+   * The purpose of this function is to catch exceptions.
+   */
+  public function check(): void {
+    $this->status = NULL;
+    try {
+      $this->status = $this->check2();
+    }
+    catch (\Exception $e) {
+      $this->errors[] = sprintf('%s::check2(): %s', get_class($this), $e->getMessage());
+    }
+  }
+
+  /**
+   * The function that is going to do the actual check.
+   *
+   * If errors or warnings are issued, then they have to be added
+   * to internal arrays of $this->warnings and $this->errors,
+   * and return ''.
+   *
+   * @return string
+   *   The function should return 'success', 'disabled',
+   *   or '' if errors or warnigs.
+   */
+  abstract protected function check2(): string;
+
 }
 
 /**
- * Check: Elasticsearch connectivity by curl.
+ * Check Drupal Bootstrap.
  */
-function check_elasticsearch(object $status): void {
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class BootstrapChecker extends Checker {
 
-  global $_drupal_settings;
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'bootstrap';
 
-  $status->setName('elasticsearch');
+  /**
+   * Drupal Settings.
+   *
+   * @var array
+   */
+  protected $settings;
 
-  // We use ping-specific configuration to check Elasticsearch.
-  // Because there are way too many ways how Elasticsearch
-  // connections can be defined depending on libs/mods/versions.
-  $connections = $_drupal_settings['ping_elasticsearch_connections'] ?? NULL;
-  if (empty($connections)) {
-    $status->set('disabled');
-    return;
+  /**
+   * Get Drupal Settings.
+   *
+   * @return array
+   *   The Drupal settings.
+   */
+  public function getSettings(): array {
+    return empty($this->settings) ? [] : $this->settings;
   }
 
-  $good_count = 0;
-  $bad_count = 0;
-  $errors = [];
+  /**
+   * Drupal bootstrap.
+   *
+   * This is a prerequisite for the rest of the checks.
+   * It is a check, but also a setup.
+   */
+  protected function check2(): string {
 
-  // Loop through Elasticsearch connections.
-  // Perform basic curl request,
-  // and ensure we get green status back.
-  foreach ($connections as $c) {
+    $autoloader = require_once 'autoload.php';
+    $request = Request::createFromGlobals();
+    $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');
+    $kernel->boot();
 
-    $url = sprintf('%s://%s:%d%s', $c['proto'], $c['host'], $c['port'], '/_cluster/health');
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 2000);
-    curl_setopt($ch, CURLOPT_TIMEOUT_MS, 2000);
-    curl_setopt($ch, CURLOPT_USERAGENT, "ping");
-    $json = curl_exec($ch);
-    if (empty($json)) {
-      $errors[] = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
-      curl_close($ch);
-      $bad_count++;
-      continue;
-    }
-    curl_close($ch);
-
-    $data = json_decode($json);
-    if (empty($data)) {
-      $errors[] = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
-      $bad_count++;
-      continue;
-    }
-
-    if (empty($data->status)) {
-      $errors[] = sprintf('url=%s - %s', $url, 'Response does not contain status');
-      $bad_count++;
-      continue;
+    // Define DRUPAL_ROOT if it's not yet defined by bootstrap.
+    if (!defined('DRUPAL_ROOT')) {
+      define('DRUPAL_ROOT', getcwd());
     }
 
-    if ($data->status !== 'green') {
-      $errors[] = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
-      $bad_count++;
-      continue;
-    }
+    // Get current settings.
+    // And save them for other functions.
+    $this->settings = Settings::getAll();
 
-    $good_count++;
+    return 'success';
   }
 
-  if ($good_count > 0 && $bad_count < 1) {
-    $status->set('success');
-    return;
-  }
-
-  if ($good_count > 0 && $bad_count > 0) {
-    $status->set('warning', implode('; ', $errors));
-    return;
-  }
-
-  if ($good_count < 1 && $bad_count > 0) {
-    $status->set($c['severity'], implode('; ', $errors));
-    return;
-  }
 }
 
 /**
- * Check: Filesystem item creation.
- *
- * Note, 'Filesystem item deletion' depends on this, and is executed after.
+ * Check Drupal Dababase availability.
  */
-function check_fs_scheme_create(object $status): void {
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class DbChecker extends Checker {
 
-  $status->setName('fs-scheme-create');
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'db';
 
-  // Define file_uri_scheme if it does not exist, it's required by realpath().
-  // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
-  if (!function_exists('file_uri_scheme')) {
+  /**
+   * Check: Main database connectivity.
+   */
+  protected function check2(): string {
 
-    /**
-     * Hmm.
+    // Check that the main database is active.
+    $result = Database::getConnection()
+      ->query('SELECT * FROM {users} WHERE uid = 1')
+      ->fetchAllKeyed();
+
+    $count = count($result);
+    $expected = 1;
+    if ($count == $expected) {
+      return 'success';
+    }
+    else {
+      $this->errors[] = "result_count=$count expected=$expected Master database invalid results.";
+      return '';
+    }
+  }
+
+}
+
+/**
+ * Check Memcache connectivity.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class MemcacheChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'memcache';
+
+  /**
+   * The list of servers to be checked.
+   *
+   * @var array
+   */
+  protected $servers;
+
+  /**
+   * Set configuration.
+   *
+   * @param array $servers
+   *   List of servers.
+   */
+  public function __construct(array $servers = NULL) {
+    $this->servers = $servers;
+  }
+
+  /**
+   * Convert settings to usable data for this checker.
+   *
+   * @param array $settings
+   *   The Drupal settings array.
+   *
+   * @return array
+   *   Return array of format [['host' => (string)$hostname,
+   *   'port' => (int)$portnr, 'bin' => (string)$bin]].
+   */
+  public static function connectionsFromSettings(array $settings): array {
+    $servers = $settings['memcache']['servers'] ?? [];
+    $servers2 = [];
+    foreach ($servers as $address => $bin) {
+      [$host, $port] = explode(':', $address);
+      $servers2[] = [
+        'host' => $host,
+        'port' => (int) $port,
+        'bin' => $bin,
+      ];
+    }
+    return $servers2;
+  }
+
+  /**
+   * Check: Memcache connectivity.
+   *
+   * Verify that all memcache instances are running on this server.
+   * There are 3 statuses:
+   * - 'success' - all instances are available.
+   * - 'warning' - 0<x<all instances are not available.
+   * - 'error' - all instances are unavailable.
+   */
+  protected function check2(): string {
+
+    if (empty($this->servers)) {
+      return 'disabled';
+    }
+
+    $good_count = 0;
+    $bad_count = 0;
+    $msgs = [];
+
+    // Loop through the defined servers.
+    foreach ($this->servers as $s) {
+
+      // We are not relying on Memcache or Memcached classes.
+      // For speed and simplicity we use just basic networking.
+      $socket = fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
+      if (!empty($errstr)) {
+        $msgs[] = "host={$s['host']} port={$s['port']} - $errstr";
+        $bad_count++;
+        continue;
+      }
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      fwrite($socket, "stats\n");
+      // Just check the first line of the reponse.
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      $line = fgets($socket);
+      if (!preg_match('/^STAT /', $line)) {
+        $msgs[] = "host={$s['host']} port={$s['port']} response='$line' - Unexpected response";
+        $bad_count++;
+        continue;
+      }
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      fclose($socket);
+
+      $good_count++;
+    }
+
+    if ($good_count > 0 && $bad_count < 1) {
+      return 'success';
+    }
+
+    if ($good_count > 0 && $bad_count > 0) {
+      $this->warnings = array_merge($this->warnings, $msgs);
+      // Warnings.
+      return '';
+    }
+
+    if ($good_count < 1 && $bad_count > 0) {
+      $this->errors = array_merge($this->errors, $msgs);
+      // Errors.
+      return '';
+    }
+  }
+
+}
+
+/**
+ * Check Redis connectivity.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class RedisChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'redis';
+
+  /**
+   * Hostname.
+   *
+   * @var string
+   */
+  protected $host;
+
+  /**
+   * Port.
+   *
+   * @var int
+   */
+  protected $port;
+
+  /**
+   * Set configuration.
+   *
+   * @param string $host
+   *   Hostname.
+   * @param int $port
+   *   Port.
+   */
+  public function __construct(string $host = NULL, int $port = NULL) {
+    $this->host = $host;
+    $this->port = $port;
+  }
+
+  /**
+   * Convert settings to usable data for this checker.
+   *
+   * @param array $settings
+   *   The Drupal settings array.
+   *
+   * @return array
+   *   Return array of format [(string) $host, (int) $port].
+   */
+  public static function connectionsFromSettings(array $settings): array {
+    $host = $settings['redis.connection']['host'] ?? NULL;
+    $port = empty($settings['redis.connection']['port']) ? NULL : (int) $settings['redis.connection']['port'];
+    return [$host, $port];
+  }
+
+  /**
+   * Check: Redis connectivity.
+   *
+   * Handles both:
+   * - TCP/IP - both host and port are defined.
+   * - Unix Socket - only host is defined as path.
+   */
+  protected function check2(): string {
+
+    if (empty($this->host) && empty($this->port)) {
+      return 'disabled';
+    }
+
+    /*
+     * In case of a socket,
+     * only host is defined.
      */
-    function file_uri_scheme($uri) {
-      return \Drupal::service('file_system')->uriScheme($uri);
+
+    // Use PhpRedis, PRedis is outdated.
+    $redis = new \Redis();
+    if ($redis->connect($this->host, $this->port)) {
+      return 'success';
+    }
+    else {
+      $this->errors[] = "host={$this->host} port={$this->port} - unable to connect";
+      return '';
+    }
+  }
+
+}
+
+/**
+ * Check ElasticSearch connectivity.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class ElasticsearchChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'elasticsearch';
+
+  /**
+   * Connections to be checked.
+   *
+   * @var array
+   */
+  protected $connections;
+
+  /**
+   * Set configuration.
+   *
+   * @param array $connections
+   *   Connections from connectionsFromSettings().
+   */
+  public function __construct(array $connections = NULL) {
+    $this->connections = $connections;
+  }
+
+  /**
+   * Convert settings to usable data for this checker.
+   *
+   * We use ping-specific configuration to check Elasticsearch.
+   * Because there are way too many ways how Elasticsearch
+   * connections can be defined depending on libs/mods/versions.
+   *
+   * @param array $settings
+   *   The Drupal settings array.
+   *
+   * @return array
+   *   Return connections array extracted from settings,
+   *   possibly reformatted.
+   */
+  public static function connectionsFromSettings(array $settings): array {
+    $connections = $settings['ping_elasticsearch_connections'] ?? [];
+    return $connections;
+  }
+
+  /**
+   * Check: Elasticsearch connectivity by curl.
+   */
+  protected function check2(): string {
+
+    if (empty($this->connections)) {
+      return 'disabled';
     }
 
+    $good_count = 0;
+    $bad_count = 0;
+
+    // Loop through Elasticsearch connections.
+    // Perform basic curl request,
+    // and ensure we get green status back.
+    foreach ($this->connections as $c) {
+
+      switch ($c['severity']) {
+        case 'warning':
+          // @codingStandardsIgnoreLine DrupalPractice.CodeAnalysis.VariableAnalysis.UnusedVariable
+          $msgs = &$this->warnings;
+          break;
+
+        case 'error':
+          // @codingStandardsIgnoreLine DrupalPractice.CodeAnalysis.VariableAnalysis.UnusedVariable
+          $msgs = &$this->errors;
+          break;
+      }
+
+      $url = sprintf('%s://%s:%d%s', $c['proto'], $c['host'], $c['port'], '/_cluster/health');
+      $ch = curl_init($url);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+      curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 2000);
+      curl_setopt($ch, CURLOPT_TIMEOUT_MS, 2000);
+      curl_setopt($ch, CURLOPT_USERAGENT, "ping");
+      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+      $json = curl_exec($ch);
+      if (empty($json)) {
+        $msgs[] = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
+        curl_close($ch);
+        $bad_count++;
+        continue;
+      }
+      curl_close($ch);
+
+      $data = json_decode($json);
+      if (empty($data)) {
+        $msgs[] = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
+        $bad_count++;
+        continue;
+      }
+
+      if (empty($data->status)) {
+        $msgs[] = sprintf('url=%s - %s', $url, 'Response does not contain status');
+        $bad_count++;
+        continue;
+      }
+
+      if ($data->status !== 'green') {
+        $msgs[] = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
+        $bad_count++;
+        continue;
+      }
+
+      $good_count++;
+    }
+
+    if ($good_count > 0 && $bad_count < 1) {
+      return 'success';
+    }
+
+    // Warnings or Errors.
+    return '';
   }
 
-  // Get current defined scheme.
-  $scheme = \Drupal::config('system.file')->get('default_scheme');
-
-  // Get the real path of the files uri.
-  $path = \Drupal::service('file_system')->realpath($scheme . '://');
-
-  // Check that the files directory is operating properly.
-  $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
-  if (empty($tmp)) {
-    $status->set('error', "path=$path - Could not create temporary file in the files directory.");
-    return;
-  }
-
-  global $_check_fs_scheme_file;
-  $_check_fs_scheme_file = $tmp;
-
-  $status->set('success');
 }
 
 /**
- * Check: Filesystem item deletion.
- *
- * Note, it depends on 'Filesystem item creation' being executed before.
+ * Check if file can be created in public files.
  */
-function check_fs_scheme_delete(object $status): void {
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class FsSchemeCreateChecker extends Checker {
 
-  $status->setName('fs-scheme-delete');
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'fs-scheme-create';
 
-  global $_check_fs_scheme_file;
-  $tmp = $_check_fs_scheme_file;
+  /**
+   * The path to the file.
+   *
+   * @var string
+   */
+  protected $file;
 
-  if (empty($tmp)) {
-    $status->set('disabled');
-    return;
+  /**
+   * Return the created file path.
+   *
+   * @return string
+   *   Return path to the created file.
+   */
+  public function getFile(): string {
+    return $this->file;
   }
 
-  if (!unlink($tmp)) {
-    $status->set('error', "file=$tmp - Could not delete newly created file in the files directory.");
-    return;
+  /**
+   * Check: Filesystem item creation.
+   *
+   * Note, 'Filesystem item deletion' depends on this, and is executed after.
+   */
+  protected function check2(): string {
+
+    // Define file_uri_scheme if it does not exist, it's required by realpath().
+    // The function file_uri_scheme is deprecated and will be removed in 9.0.0.
+    if (!function_exists('file_uri_scheme')) {
+
+      /**
+       * Hmm.
+       */
+      // @codingStandardsIgnoreLine Drupal.NamingConventions.ValidFunctionName.NotCamelCaps
+      function file_uri_scheme($uri) {
+        return \Drupal::service('file_system')->uriScheme($uri);
+      }
+
+    }
+
+    // Get current defined scheme.
+    $scheme = \Drupal::config('system.file')->get('default_scheme');
+
+    // Get the real path of the files uri.
+    $path = \Drupal::service('file_system')->realpath($scheme . '://');
+
+    // Check that the files directory is operating properly.
+    $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
+    if (empty($tmp)) {
+      $this->errors[] = "path=$path - Could not create temporary file in the files directory.";
+      return '';
+    }
+    $this->file = $tmp;
+
+    return 'success';
   }
 
-  $status->set('success');
 }
 
 /**
- * Check: Custom ping.
- *
- * _ping.custom.php will be executed if present.
+ * Check if file can be removed from public files.
  */
-function check_custom_ping(object $status): void {
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class FsSchemeDeleteChecker extends Checker {
 
-  $status->setName('custom-ping');
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'fs-scheme-delete';
 
-  if (!file_exists('_ping.custom.php')) {
-    $status->set('disabled');
-    return;
+  /**
+   * The filename fo be attempted to remove.
+   *
+   * @var string
+   */
+  protected $file;
+
+  /**
+   * Constructor for file removal.
+   *
+   * @param string $file
+   *   Filename to be attempted to remove.
+   */
+  public function __construct(string $file = NULL) {
+    $this->file = $file;
   }
 
-  // We set the status in advance,
-  // but it will be overridden by the custom ping
-  // or by catch(){}.
-  $status->set('success');
+  /**
+   * Check: Filesystem item deletion.
+   *
+   * Note, it depends on 'Filesystem item creation' being executed before.
+   */
+  protected function check2(): string {
 
-  // Note: the custom script has to use
-  // $status->set() interface for the messages!
-  include '_ping.custom.php';
+    if (empty($this->file)) {
+      return 'disabled';
+    }
+
+    // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
+    if (!unlink($this->file)) {
+      $this->errors[] = "file={$this->file} - Could not delete newly created file in the files directory.";
+      return '';
+    }
+
+    return 'success';
+  }
+
+}
+
+/**
+ * Check by Custom Ping.
+ */
+// @codingStandardsIgnoreLine Drupal.Classes.ClassFileName.NoMatch
+class CustomPingChecker extends Checker {
+
+  /**
+   * The name of the checker.
+   *
+   * @var string
+   */
+  protected $name = 'custom-ping';
+
+  /**
+   * Check: Custom ping.
+   *
+   * _ping.custom.php will be executed if present.
+   */
+  protected function check2(): string {
+
+    if (!file_exists('_ping.custom.php')) {
+      return 'disabled';
+    }
+
+    // We set the status in advance,
+    // but it will be overridden by the custom ping,
+    // or by catch(){}.
+    $status = 'success';
+
+    // Note: the custom script has to use:
+    // $status = 'success'; // if successful.
+    // $status = 'disabled'; // if disabled.
+    // $status = ''; // if warnings or errors.
+    // $this->warnings[] = '...'; // if warnings.
+    // $this->errors[] = '...'; // if errors.
+    include '_ping.custom.php';
+
+    return $status;
+  }
+
 }
 
 /**
@@ -587,11 +1095,11 @@ class Profile {
   private $duration;
 
   /**
-   * Time[ns] spent on non-measured stuff.
+   * Time[ns] spent on php startup.
    *
    * @var int
    */
-  private $misc;
+  private $preboot = 0;
 
   /**
    * Holds profiled functions and durations[ns].
@@ -607,6 +1115,7 @@ class Profile {
    */
   public function __construct() {
     $this->start = hrtime(TRUE);
+    $this->preboot = $this->spent();
   }
 
   /**
@@ -616,18 +1125,27 @@ class Profile {
 
     $this->stop = hrtime(TRUE);
 
-    $this->duration = $this->stop - $this->start;
-
-    $measured = 0;
-    foreach ($this->items as $duration) {
-      $measured += $duration;
+    $this->duration = $this->spent();
+    if (empty($this->duration)) {
+      $this->duration = $this->stop - $this->start;
+      return;
     }
+  }
 
-    // Calculate 'misc'.
-    // Misc is time spent on non-measured things.
-    // It is total_execution_time - sum(measured_items).
-    $misc = 0;
-    $this->misc = $this->duration - $measured;
+  /**
+   * Nanoseconds spent from the execution of the script.
+   *
+   * @return int
+   *   Nanoseconds from the start of the execution.
+   */
+  private function spent(): int {
+    $zero = $_SERVER['REQUEST_TIME_FLOAT'];
+    if (empty($zero)) {
+      return 0;
+    }
+    $now = microtime(TRUE);
+    $duration = (int) (($now - $zero) * 1e9);
+    return $duration;
   }
 
   /**
@@ -637,31 +1155,24 @@ class Profile {
    * The error-catching is way too convenient and tempting here,
    * though it violates the single responsibility.
    *
-   * @param string $func
-   *   The function name to be executed, and measured.
-   * @param array $args
-   *   Arguments to provide to the function.
-   *
-   * @return string|null
-   *   Return error string, or NULL.
+   * @param callable $func
+   *   A specific check to be run under profiling.
+   * @param string $name
+   *   The name of the measurement.
    */
-  public function measure(string $func, array $args) {
-
+  public function measure(callable $func, string $name): void {
     $start = hrtime(TRUE);
-    try {
-      $msg = NULL;
-      // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FunctionHandlingFunctions.WarnFunctionHandling
-      call_user_func_array($func, $args);
-    }
-    catch (\Exception $e) {
-      $msg = sprintf('%s(): %s', $func, $e->getMessage());
-    }
+    $func();
     $end = hrtime(TRUE);
     $duration = $end - $start;
+    $this->items[$name] = $duration;
+  }
 
-    $this->items[$func] = $duration;
-
-    return $msg;
+  /**
+   * Return Intenal data for testing.
+   */
+  public function get(): array {
+    return $this->items;
   }
 
   /**
@@ -676,13 +1187,14 @@ class Profile {
 
     $fmt = '% 10.3f ms - %s';
 
-    arsort($items);
+    arsort($this->items);
     $lines = [];
     foreach ($this->items as $func => $duration) {
       $lines[] = sprintf($fmt, $duration / 1000000, $func);
     }
 
-    $lines[] = sprintf($fmt, $this->misc / 1000000, 'misc');
+    $lines[] = '';
+    $lines[] = sprintf($fmt, $this->preboot / 1000000, 'preboot');
     $lines[] = sprintf($fmt, $this->duration / 1000000, 'total');
 
     $lines = implode($separator, $lines);
@@ -693,7 +1205,7 @@ class Profile {
    * Filter checks that executed between $minMs and $maxMs.
    *
    * @return array
-   *   The format is ['func' => duration].
+   *   The format is ['func' => durationMs].
    */
   public function getByDuration(int $minMs = NULL, int $maxMs = NULL): array {
 
@@ -731,35 +1243,35 @@ class Status {
    *
    * @var string
    */
-  private $name = 'unset';
-
-  /**
-   * Set context name.
-   *
-   * The idea is that when we start certain procedure then we set context first.
-   * It makes much easier not to repeat the context name in all the subsequent
-   * $status->set() calls.
-   *
-   * @param string $name
-   *   The name of the context. Preferred chars: 'a-z0-9_-'.
-   */
-  public function setName(string $name): void {
-    $this->name = $name;
-  }
+  private $name;
 
   /**
    * Set status for the current context.
    *
+   * @param string $name
+   *   The name of object of the status.
    * @param string $severity
    *   One of: 'error', 'warning', 'success', 'disabled'.
    * @param string $message
    *   Further details on the severity. Optional.
    */
-  public function set(string $severity, string $message = ''): void {
-    $this->items[$this->name] = [
+  public function set(string $name, string $severity, string $message = ''): void {
+    $this->items[$name] = [
       'severity' => $severity,
       'message' => $message,
     ];
+  }
+
+  /**
+   * Get all statuses.
+   *
+   * Needed for testing.
+   *
+   * @return array
+   *   Return status structure.
+   */
+  public function get(): array {
+    return $this->items;
   }
 
   /**
@@ -789,7 +1301,7 @@ class Status {
    */
   public function getTextTable(string $separator): string {
     $lines = [];
-    foreach ($_status as $name => $details) {
+    foreach ($this->items as $name => $details) {
       $lines[] = sprintf('%-20s %-10s %s', $name, $details['severity'], $details['message']);
     }
     $lines = implode($separator, $lines);

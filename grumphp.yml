@@ -8,7 +8,9 @@ grumphp:
     php_compatibility: ~
     check_file_permissions: ~
     php_check_syntax: ~
-    phpcs: ~
+    phpcs:
+      ignore_patterns:
+        - tests
   extensions:
     - Wunderio\GrumPHP\Task\PhpCompatibility\PhpCompatibilityExtensionLoader
     - Wunderio\GrumPHP\Task\PhpCheckSyntax\PhpCheckSyntaxExtensionLoader

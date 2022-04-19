@@ -8,8 +8,7 @@ export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
 # without need for rebuild
 drupal_root=drupal9
 
-# d9
-cd /app/test/
+cd /app
 
 set +e
 rm -rf "$drupal_root"
@@ -21,11 +20,12 @@ set -e
 # https://www.drupal.org/project/drupal/issues/3255749
 composer create-project drupal/recommended-project "$drupal_root"
 
-web="/app/test/$drupal_root/web"
+web="/app/$drupal_root/web"
 chmod 755 "$web/sites/default"
 rm -f "$web/sites/default/settings.php"
-ln -s /app/test/settings.php "$web/sites/default/settings.php"
-ln -s /app/test/_ping.custom.php "$web/"
+ln -s /app/settings.php "$web/sites/default/settings.php"
+ln -s /app/_ping.custom.php "$web/"
+ln -s /app/_ping.php "$web/"
 
-cd "/app/test/$drupal_root"
+cd "/app/$drupal_root"
 composer require --dev drush/drush

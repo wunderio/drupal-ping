@@ -1,3 +1,4 @@
-## composer ##
-vendor/
-composer.lock
+/.phpunit.cache/
+/composer.lock
+/drupal*/
+/vendor/
