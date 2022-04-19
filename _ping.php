@@ -517,6 +517,9 @@ class BootstrapChecker extends Checker {
    */
   protected function check2(): string {
 
+    /**
+     * @psalm-suppress MissingFile
+     */
     $autoloader = require_once 'autoload.php';
     $request = Request::createFromGlobals();
     $kernel = DrupalKernel::createFromRequest($request, $autoloader, 'prod');

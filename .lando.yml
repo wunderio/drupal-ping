@@ -48,11 +48,10 @@ tooling:
   scan:
     service: appserver
     cmd:
-      - php -l _ping.custom.php
       - php -l _ping.php
       - php -l settings.php
-      - php -l phpstan-drupal9-autoload.php
-      - ./vendor/bin/phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php _ping.custom.php settings.php phpstan-drupal9-autoload.php
-      - ./vendor/bin/phpstan analyze --level=5 --autoload-file phpstan-drupal9-autoload.php -- _ping.php _ping.custom.php settings.php phpstan-drupal9-autoload.php
+      - ./vendor/bin/phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php settings.php
+      - ./vendor/bin/phpstan analyze --level=5 --autoload-file scan-autoload.php -- _ping.php settings.php
+      - ./vendor/bin/psalm
 
 version: 3.6.2
