@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -euo pipefail
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
+
+cd /app
+composer install
+
+if [ ! -d vendor/drupal/drupal ]; then
+  exit 0
+fi
+
+echo -e '\e[1;31m'
+cat <<TXT
+!!! ERROR !!!
+Drupal cannot be installed at the top level.
+It causes two problems:
+1. Branches cannot be switched easily
+2. Breaks PhpUnit tests - some dupal stuff gets autoloaded and executed befoer tests run
+TXT
+echo -e '\e[0m'
+
+exit 1

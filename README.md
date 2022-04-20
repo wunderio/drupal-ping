@@ -122,7 +122,7 @@ Check it out how other checks are created in the `_ping.php`.
 
 ## Ping Development & Testing
 
-- `lando composer install` - Install code quality tools
+- `lando install` - Install dev dependencies without Drupal
 - `lando start` - Install basic Drupal and services
 - `lando test` - Execute phpunit tests
 - `lando scan` - Run coding standard checks
