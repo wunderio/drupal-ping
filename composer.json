@@ -10,13 +10,32 @@
       "email": "janne.koponen@wunder.io",
       "homepage": "https://github.com/tharna",
       "role": "Developer"
+    },
+    {
+      "name": "Ragnar Kurm",
+      "email": "ragnar.kurm@wunder.io",
+      "homepage": "https://github.com/ragnarkurmwunder",
+      "role": "Developer"
     }
   ],
   "keywords": [
-    "drupal","ping","healthcheck"
+    "drupal",
+    "ping",
+    "healthcheck"
   ],
   "require": {
-    "drupal/drupal": "~7.0",
+    "drupal/drupal": "^7",
     "koodimonni/composer-dropin-installer": ">=1.0.1"
+  },
+  "require-dev": {
+    "wunderio/code-quality": "^2",
+    "phpunit/phpunit": "^9"
+  },
+  "config": {
+    "allow-plugins": {
+      "koodimonni/composer-dropin-installer": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "phpro/grumphp": true
+    }
   }
 }

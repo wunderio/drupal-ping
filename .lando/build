@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -xeuo pipefail
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
+
+# must be different between branches
+# it allows easy branch switching
+# without need for rebuild
+drupal_root=drupal7
+proj="/app/$drupal_root"
+web="$proj/web"
+sites="$web/sites"
+default="$sites/default"
+
+set +e
+rm -rf "$proj"
+chmod -R 777 "$proj"
+rm -rf "$proj"
+set -e
+
+# NB! When Composer breaks:
+# https://www.drupal.org/project/drupal/issues/3255749
+cd /app
+composer create-project drupal-composer/drupal-project:7.x-dev -n "$drupal_root"
+
+# Fix D7+C2 bug
+set +e
+cp -rv "$sites"/sites/* "$sites/"
+rm -rf "$sites/sites"
+set -e
+
+ln -s /app/_ping.php "$web/"
+ln -s /app/_ping.custom.php "$web/"
+cd "$proj"
+composer require --dev drush/drush:^8
+
+chmod 755 "$default"
+rm -f "$default/settings.php"
+ln -s /app/settings.php "$default/"
