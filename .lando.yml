@@ -38,9 +38,9 @@ services:
   # varnish
 
 tooling:
-  composer:
+  install:
     service: appserver
-    cmd: /usr/local/bin/composer
+    cmd: /app/.lando/cmd-install
   test:
     service: appserver
     cmd:

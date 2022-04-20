@@ -24,11 +24,12 @@
     "healthcheck"
   ],
   "require": {
+    "drupal/core": "^8 || ^9",
     "koodimonni/composer-dropin-installer": ">=1.0.1"
   },
   "require-dev": {
-    "wunderio/code-quality": "^2.2",
-    "phpunit/phpunit": "^9.5"
+    "wunderio/code-quality": "^2",
+    "phpunit/phpunit": "^9"
   },
   "config": {
     "allow-plugins": {
