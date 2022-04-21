@@ -43,8 +43,9 @@ Breaking Changes!
 
 ## Usage
 
-* One can visit `/_ping.php` to get a status
-* By using `?debug=hash` query, one can get status check status table, and time profiling table. The `hash` is 4 first letters of the salt in `settings.php`.
+* Visit `/_ping.php` to get a system status
+* By using `?debug=hash` additional status check table and time profiling information is displayed.
+    * The `hash` is `md5` of `hash_salt` defined in Drupal `settings.php`.
 * Find slow checks and checks errors in logs.
 
 ## Checks
