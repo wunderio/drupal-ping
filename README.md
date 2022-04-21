@@ -45,7 +45,7 @@ Breaking Changes!
 
 * Visit `/_ping.php` to get a system status
 * By using `?debug=hash` additional status check table and time profiling information is displayed.
-    * The `hash` is `md5` of `hash_salt` defined in Drupal `settings.php`.
+  * See [Ping Development & Testing](#ping-development--testing) how to obtain the `hash` value.
 * Find slow checks and checks errors in logs.
 
 ## Checks
