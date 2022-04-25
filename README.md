@@ -44,8 +44,8 @@ Breaking Changes!
 ## Usage
 
 * Visit `/_ping.php` to get a system status
-* By using `?debug=hash` additional status check table and time profiling information is displayed.
-  * See [Ping Development & Testing](#ping-development--testing) how to obtain the `hash` value.
+* By using `?debug=token` additional status check table and time profiling information is displayed.
+  * See [Ping Development & Testing](#ping-development--testing) how to obtain the `token` value.
 * Find slow checks and checks errors in logs.
 
 ## Checks
@@ -135,7 +135,7 @@ They have separate dirs.
 `_ping.php` can be accessed over the lando url.
 For example `http://localhost:51418/_ping.php`.
 It can also be accessed from the shell `cd /app/drupal9/web ; php _ping.php`.
-From the shell output the debug code can be attained.
+From the shell output the debug token can be attained.
 
 ## Maintainers
 
