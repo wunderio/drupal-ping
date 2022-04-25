@@ -12,7 +12,10 @@ This script can be used for Drupal7 health-checks.
 {
     "extra": {
         "dropin-paths": {
-            "web/": ["package:wunderio/drupal-ping:_ping.php"]
+            "web/": [
+                "type:web-dropin",
+                "package:wunderio/drupal-ping:_ping.php"
+            ]
         }
     }
 }
