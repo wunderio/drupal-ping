@@ -42,7 +42,7 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $c = new FsSchemeCleanupChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'removed=1 Orphaned fs check files deleted.'], $status);
+    $this->assertEquals(['warning', 'removed=1 Orphaned fs check files deleted.'], $status);
   }
 
   /**
