@@ -30,7 +30,7 @@ class FsSchemeCleanupCheckerTest extends TestCase {
   /**
    * @covers ::check2
    */
-  public function testCheckError(): void {
+  public function testCheckWarning(): void {
 
     // Make sure it is clean.
     $c = new FsSchemeCleanupChecker();
@@ -41,7 +41,7 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $c = new FsSchemeCleanupChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'removed=1 Orphaned fs check files deleted.'], $status);
+    $this->assertEquals(['warning', 'removed=1 Orphaned fs check files deleted.'], $status);
   }
 
   /**
