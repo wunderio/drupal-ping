@@ -51,7 +51,7 @@ $settings['ping_elasticsearch_connections'] = [
   ],
 ];
 
-// For debugging add "?debug=test" to the query - 4 letters of the hash.
+// In certain situations `hash_salt` is used to generate the debug token.
 $settings['hash_salt'] = 'testing';
 
 // @codingStandardsIgnoreLine DrupalPractice.Commenting.CommentEmptyLine.SpacingAfter
