@@ -30,7 +30,7 @@ class FsSchemeCleanupCheckerTest extends TestCase {
   /**
    * @covers ::check2
    */
-  public function testCheckError(): void {
+  public function testCheckWarning(): void {
 
     // Make sure it is clean.
     $c = new FsSchemeCleanupChecker();
