@@ -31,6 +31,14 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
+### v2.3
+
+- Refactor error messages into JSON for easier automation.
+
+### v2.2
+
+- Add Public filesystem Cleanup checker
+
 ### v2.1
 
 - Refactor code into Classes
