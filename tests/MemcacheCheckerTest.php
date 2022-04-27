@@ -100,7 +100,16 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'host=memcached port=64000 - Connection refused'], $status);
+    $data = [
+      'message' => 'Connection errors.',
+      'errors' => [[
+        'host' => 'memcached',
+        'port' => 64000,
+        'error' => 'Connection refused',
+      ]],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**
@@ -117,7 +126,16 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'host=localhost port=11211 - Cannot assign requested address'], $status);
+    $data = [
+      'message' => 'Connection errors.',
+      'errors' => [[
+        'host' => 'localhost',
+        'port' => 11211,
+        'error' => 'Cannot assign requested address',
+      ]],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**
@@ -163,7 +181,18 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['warning', 'host=memcached port=11212 - Connection refused'], $status);
+    $data = [
+      'message' => 'Connection warnings.',
+      'warnings' => [
+        [
+          'host' => 'memcached',
+          'port' => 11212,
+          'error' => 'Connection refused',
+        ],
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -186,7 +215,23 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'host=memcached port=11212 - Connection refused; host=memcached port=11212 - Connection refused'], $status);
+    $data = [
+      'message' => 'Connection errors.',
+      'errors' => [
+        [
+          'host' => 'memcached',
+          'port' => 11212,
+          'error' => 'Connection refused',
+        ],
+        [
+          'host' => 'memcached',
+          'port' => 11212,
+          'error' => 'Connection refused',
+        ],
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
 }

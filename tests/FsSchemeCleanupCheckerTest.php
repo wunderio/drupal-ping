@@ -42,7 +42,12 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $c = new FsSchemeCleanupChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['warning', 'removed=1 Orphaned fs check files deleted.'], $status);
+    $data = [
+      'message' => 'Orphaned fs check files deleted.',
+      'removed_count' => 1
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -55,7 +60,12 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $c = new FsSchemeCleanupChecker('/nonexistent');
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'pattern=/nonexistent/status_check_* Unable to list files.'], $status);
+    $data = [
+      'message' => 'Unable to list files.',
+      'pattern' => '/nonexistent/status_check_*',
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**

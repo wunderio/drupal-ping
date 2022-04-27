@@ -373,20 +373,6 @@ TXT;
 abstract class Checker {
 
   /**
-   * Warnings happened during the check.
-   *
-   * @var array
-   */
-  protected $warnings = [];
-
-  /**
-   * Errors happened during the check.
-   *
-   * @var array
-   */
-  protected $errors = [];
-
-  /**
    * The status for the check result.
    *
    * @var string
@@ -399,6 +385,13 @@ abstract class Checker {
    * @var string
    */
   protected $name = '';
+
+  /**
+   * The variables of the message.
+   *
+   * @var array
+   */
+  protected $data = [];
 
   /*
    * Configure the checker.
@@ -425,30 +418,34 @@ abstract class Checker {
    *   ]
    */
   public function getStatusInfo(): array {
-
-    $status = '';
-    $info = [];
-
-    if (!empty($this->status)) {
-      $status = $this->status;
-      goto ret;
-    }
-
-    if (!empty($this->warnings)) {
-      $status = 'warning';
-      $info = array_merge($info, $this->warnings);
-    }
-
-    if (!empty($this->errors)) {
-      $status = 'error';
-      $info = array_merge($info, $this->errors);
-    }
-
-    ret:
     return [
-      $status,
-      implode('; ', $info),
+      $this->status,
+      empty($this->data) ? '' : json_encode($this->data),
     ];
+  }
+
+  /**
+   * Safety wrapper for the check function.
+   *
+   * The purpose of this function is to catch exceptions.
+   *
+   * @param string $status
+   *   Status: 'disabled', 'success', 'warning', 'error'.
+   * @param string $message
+   *   The message of the status.
+   * @param array $data
+   *   Additional details.
+   */
+  protected function setStatus(string $status, string $message = '', array $data = []): void {
+    $this->status = $status;
+    $d = [];
+    if (!empty($message)) {
+      $d = array_merge($d, ['message' => $message]);
+    }
+    if (!empty($data)) {
+      $d = array_merge($d, $data);
+    }
+    $this->data = $d;
   }
 
   /**
@@ -457,27 +454,25 @@ abstract class Checker {
    * The purpose of this function is to catch exceptions.
    */
   public function check(): void {
-    $this->status = '';
+    $this->setStatus('success');
     try {
-      $this->status = $this->check2();
+      $this->check2();
     }
     catch (\Exception $e) {
-      $this->errors[] = sprintf('%s::check2(): %s', get_class($this), $e->getMessage());
+      $this->setStatus('error', 'Internal error.', [
+        'function' => sprintf('%s::check2()', get_class($this)),
+        'exception' => $e->getMessage(),
+      ]);
     }
   }
 
   /**
    * The function that is going to do the actual check.
    *
-   * If errors or warnings are issued, then they have to be added
-   * to internal arrays of $this->warnings and $this->errors,
-   * and return ''.
-   *
-   * @return string
-   *   The function should return 'success', 'disabled',
-   *   or '' if errors or warnigs.
+   * The implementation should use setStatus().
+   * The if not used, the status will be 'success'.
    */
-  abstract protected function check2(): string;
+  abstract protected function check2(): void;
 
 }
 
@@ -517,7 +512,7 @@ class BootstrapChecker extends Checker {
    * This is a prerequisite for the rest of the checks.
    * It is a check, but also a setup.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     /**
      * @psalm-suppress MissingFile
@@ -549,8 +544,6 @@ class BootstrapChecker extends Checker {
       }
 
     }
-
-    return 'success';
   }
 
 }
@@ -571,7 +564,7 @@ class DbChecker extends Checker {
   /**
    * Check: Main database connectivity.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     // Check that the main database is active.
     $result = Database::getConnection()
@@ -581,11 +574,14 @@ class DbChecker extends Checker {
     $count = count($result);
     $expected = 1;
     if ($count == $expected) {
-      return 'success';
+      return;
     }
     else {
-      $this->errors[] = "result_count=$count expected=$expected Master database invalid results.";
-      return '';
+      $this->setStatus('error', 'Master database returned invalid results.', [
+        'actual_count' => $count,
+        'expected_count' => $expected,
+      ]);
+      return;
     }
   }
 
@@ -654,10 +650,11 @@ class MemcacheChecker extends Checker {
    * - 'warning' - 0<x<all instances are not available.
    * - 'error' - all instances are unavailable.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     if (empty($this->servers)) {
-      return 'disabled';
+      $this->setStatus('disabled');
+      return;
     }
 
     $good_count = 0;
@@ -671,7 +668,11 @@ class MemcacheChecker extends Checker {
       // For speed and simplicity we use just basic networking.
       $socket = fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
       if (!empty($errstr)) {
-        $msgs[] = "host={$s['host']} port={$s['port']} - $errstr";
+        $msgs[] = [
+          'host' => $s['host'],
+          'port' => $s['port'],
+          'error' => $errstr,
+        ];
         $bad_count++;
         continue;
       }
@@ -681,7 +682,12 @@ class MemcacheChecker extends Checker {
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       $line = fgets($socket);
       if (!preg_match('/^STAT /', $line)) {
-        $msgs[] = "host={$s['host']} port={$s['port']} response='$line' - Unexpected response";
+        $msgs[] = [
+          'host' => $s['host'],
+          'port' => $s['port'],
+          'message' => 'Unexpected response.',
+          'response' => $line,
+        ];
         $bad_count++;
         continue;
       }
@@ -692,22 +698,20 @@ class MemcacheChecker extends Checker {
     }
 
     if ($good_count > 0 && $bad_count < 1) {
-      return 'success';
+      return;
     }
 
     if ($good_count > 0 && $bad_count > 0) {
-      $this->warnings = array_merge($this->warnings, $msgs);
-      // Warnings.
-      return '';
+      $this->setStatus('warning', 'Connection warnings.', ['warnings' => $msgs]);
+      return;
     }
 
     if ($good_count < 1 && $bad_count > 0) {
-      $this->errors = array_merge($this->errors, $msgs);
-      // Errors.
-      return '';
+      $this->setStatus('error', 'Connection errors.', ['errors' => $msgs]);
+      return;
     }
 
-    return 'internal_error';
+    $this->setStatus('error', 'Internal error.');
   }
 
 }
@@ -774,10 +778,11 @@ class RedisChecker extends Checker {
    * - TCP/IP - both host and port are defined.
    * - Unix Socket - only host is defined as path.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     if (empty($this->host) && empty($this->port)) {
-      return 'disabled';
+      $this->setStatus('disabled');
+      return;
     }
 
     /*
@@ -788,11 +793,14 @@ class RedisChecker extends Checker {
     // Use PhpRedis, PRedis is outdated.
     $redis = new \Redis();
     if ($redis->connect($this->host, $this->port)) {
-      return 'success';
+      return;
     }
     else {
-      $this->errors[] = "host={$this->host} port={$this->port} - unable to connect";
-      return '';
+      $this->setStatus('error', 'Unable to connect.', [
+        'host' => $this->host,
+        'port' => $this->port,
+      ]);
+      return;
     }
   }
 
@@ -850,14 +858,15 @@ class ElasticsearchChecker extends Checker {
   /**
    * Check: Elasticsearch connectivity by curl.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     if (empty($this->connections)) {
-      return 'disabled';
+      $this->setStatus('disabled');
+      return;
     }
 
-    $good_count = 0;
-    $bad_count = 0;
+    $warnings = [];
+    $errors = [];
 
     // Loop through Elasticsearch connections.
     // Perform basic curl request,
@@ -867,12 +876,12 @@ class ElasticsearchChecker extends Checker {
       switch ($c['severity']) {
         case 'warning':
           // @codingStandardsIgnoreLine DrupalPractice.CodeAnalysis.VariableAnalysis.UnusedVariable
-          $msgs = &$this->warnings;
+          $msgs = &$warnings;
           break;
 
         case 'error':
           // @codingStandardsIgnoreLine DrupalPractice.CodeAnalysis.VariableAnalysis.UnusedVariable
-          $msgs = &$this->errors;
+          $msgs = &$errors;
           break;
       }
 
@@ -885,41 +894,81 @@ class ElasticsearchChecker extends Checker {
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       $json = curl_exec($ch);
       if (empty($json)) {
-        $msgs[] = sprintf('url=%s - errno=%d errstr="%s"', $url, curl_errno($ch), curl_error($ch));
+        $msgs[] = [
+          'url' => $url,
+          'errno' => curl_errno($ch),
+          'errstr' => curl_error($ch),
+        ];
         curl_close($ch);
-        $bad_count++;
         continue;
       }
       curl_close($ch);
 
       $data = json_decode($json);
       if (empty($data)) {
-        $msgs[] = sprintf('url=%s - %s', $url, 'Unable to decode JSON response');
-        $bad_count++;
+        $msgs[] = [
+          'url' => $url,
+          'message' => 'Unable to decode JSON response',
+        ];
         continue;
       }
 
       if (empty($data->status)) {
-        $msgs[] = sprintf('url=%s - %s', $url, 'Response does not contain status');
-        $bad_count++;
+        $msgs[] = [
+          'url' => $url,
+          'message' => 'Response does not contain status',
+        ];
         continue;
       }
 
       if ($data->status !== 'green') {
-        $msgs[] = sprintf('url=%s status=%s - %s', $url, $data->status, 'Not green');
-        $bad_count++;
+        $msgs[] = [
+          'url' => $url,
+          'status' => $data->status,
+          'message' => 'Not green',
+        ];
         continue;
       }
-
-      $good_count++;
     }
 
-    if ($good_count > 0 && $bad_count < 1) {
-      return 'success';
+    $warnings_count = count($warnings);
+    $errors_count = count($errors);
+
+    /**
+     * @psalm-suppress RedundantCondition
+     */
+    // @phpstan-ignore-next-line
+    if ($warnings_count < 1 && $errors_count < 1) {
+      return;
     }
 
-    // Warnings or Errors.
-    return '';
+    /**
+     * @psalm-suppress TypeDoesNotContainType
+     */
+    // @phpstan-ignore-next-line
+    if ($warnings_count > 0 && $errors_count < 1) {
+      $this->setStatus('warning', '', $warnings);
+      return;
+    }
+
+    /**
+     * @psalm-suppress RedundantCondition
+     */
+    if ($warnings_count < 1 && $errors_count > 0) {
+      $this->setStatus('error', '', $errors);
+      return;
+    }
+
+    /**
+     * @psalm-suppress TypeDoesNotContainType
+     */
+    if ($warnings_count > 0 && $errors_count > 0) {
+      $this->setStatus('error', '', [
+        'warnings' => $warnings,
+        'errors' => $errors,
+      ]);
+      return;
+    }
   }
 
 }
@@ -959,7 +1008,7 @@ class FsSchemeCreateChecker extends Checker {
    *
    * Note, 'Filesystem item deletion' depends on this, and is executed after.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     // Get current defined scheme.
     $scheme = \Drupal::config('system.file')->get('default_scheme');
@@ -970,12 +1019,13 @@ class FsSchemeCreateChecker extends Checker {
     // Check that the files directory is operating properly.
     $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
     if (empty($tmp)) {
-      $this->errors[] = "path=$path - Could not create temporary file in the files directory.";
-      return '';
+      $this->setStatus('error', 'Could not create temporary file in the files directory.', [
+        'path' => $path,
+      ]);
+      return;
+
     }
     $this->file = $tmp;
-
-    return 'success';
   }
 
 }
@@ -1015,19 +1065,20 @@ class FsSchemeDeleteChecker extends Checker {
    *
    * Note, it depends on 'Filesystem item creation' being executed before.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     if (empty($this->file)) {
-      return 'disabled';
+      $this->setStatus('disabled');
+      return;
     }
 
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
-      $this->errors[] = "file={$this->file} - Could not delete newly created file in the files directory.";
-      return '';
+      $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
+        'file' => $this->file,
+      ]);
+      return;
     }
-
-    return 'success';
   }
 
 }
@@ -1078,13 +1129,15 @@ class FsSchemeCleanupChecker extends Checker {
    *
    * Note, it depends on 'Filesystem item creation' being executed before.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     $pattern = "{$this->path}/status_check_*";
     $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
     if ($files === FALSE) {
-      $this->errors[] = "pattern=$pattern Unable to list files.";
-      return '';
+      $this->setStatus('error', 'Unable to list files.', [
+        'pattern' => $pattern,
+      ]);
+      return;
     }
 
     $removed = 0;
@@ -1097,18 +1150,20 @@ class FsSchemeCleanupChecker extends Checker {
       }
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
-        $this->errors[] = "file=$file - Could not delete file in the public files directory.";
-        return '';
+        $this->setStatus('error', 'Could not delete file in the public files directory.', [
+          'file' => $file,
+        ]);
+        return;
       }
       $removed++;
     }
 
     if ($removed > 0) {
-      $this->warnings[] = "removed=$removed Orphaned fs check files deleted.";
-      return '';
+      $this->setStatus('warning', 'Orphaned fs check files deleted.', [
+        'removed_count' => $removed,
+      ]);
+      return;
     }
-
-    return 'success';
   }
 
 }
@@ -1131,26 +1186,26 @@ class CustomPingChecker extends Checker {
    *
    * _ping.custom.php will be executed if present.
    */
-  protected function check2(): string {
+  protected function check2(): void {
 
     if (!file_exists('_ping.custom.php')) {
-      return 'disabled';
+      $this->setStatus('disabled');
+      return;
     }
 
-    // We set the status in advance,
-    // but it will be overridden by the custom ping,
-    // or by catch(){}.
-    $status = 'success';
-
     // Note: the custom script has to use:
-    // $status = 'success'; // if successful.
-    // $status = 'disabled'; // if disabled.
-    // $status = ''; // if warnings or errors.
-    // $this->warnings[] = '...'; // if warnings.
-    // $this->errors[] = '...'; // if errors.
+    // $status = 'success';
+    // $status = 'disabled';
+    // $status = 'warning';
+    // $status = 'success';
+    // $message = '...'; // The error message.
+    // $data[] = [...]; // Debug data.
+    $status = 'success';
+    $message = '';
+    $data = [];
     include '_ping.custom.php';
 
-    return $status;
+    $this->setStatus($status, $message, $data);
   }
 
 }

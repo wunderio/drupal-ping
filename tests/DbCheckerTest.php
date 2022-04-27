@@ -44,7 +44,13 @@ class DbCheckerTest extends TestCase {
     $c = new DbChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'result_count=0 expected=1 Master database invalid results.'], $status);
+    $data = [
+      'message' => 'Master database returned invalid results.',
+      'actual_count' => 0,
+      'expected_count' => 1,
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
 }

@@ -97,7 +97,13 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'url=https://elasticsearch:9200/_cluster/health - errno=35 errstr="error:1408F10B:SSL routines:ssl3_get_record:wrong version number"'], $status);
+    $data = [[
+      'url' => 'https://elasticsearch:9200/_cluster/health',
+      'errno' => 35,
+      'errstr' => 'error:1408F10B:SSL routines:ssl3_get_record:wrong version number',
+    ]];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**
@@ -142,7 +148,13 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"'], $status);
+    $data = [[
+      'url' => 'http://elasticsearch:9201/_cluster/health',
+      'errno' => 7,
+      'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+    ]];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**
@@ -170,7 +182,15 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['warning', 'url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"'], $status);
+    $data = [
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -198,7 +218,20 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['warning', 'url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"; url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"'], $status);
+    $data = [
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -226,7 +259,15 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"'], $status);
+    $data = [
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
   /**
@@ -254,7 +295,21 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"; url=http://elasticsearch:9201/_cluster/health - errno=7 errstr="Failed to connect to elasticsearch port 9201: Connection refused"'], $status);
+    $data = [
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+      [
+        'url' => 'http://elasticsearch:9201/_cluster/health',
+        'errno' => 7,
+        'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
+      ],
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
+
   }
 
 }

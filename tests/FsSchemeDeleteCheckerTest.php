@@ -40,7 +40,12 @@ class FsSchemeDeleteCheckerTest extends TestCase {
     $c = new FsSchemeDeleteChecker($file);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', "file=$file - Could not delete newly created file in the files directory."], $status);
+    $data = [
+      'message' => 'Could not delete newly created file in the files directory.',
+      'file' => $file,
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
 }

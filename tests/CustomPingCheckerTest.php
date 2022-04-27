@@ -55,13 +55,19 @@ PHP
     $c = new CustomPingChecker();
     file_put_contents('_ping.custom.php', <<<PHP
 <?php
-\$status = '';
-\$this->warnings[] = 'The warning.';
+\$status = 'warning';
+\$message = 'The warning.';
+\$data = ['x' => 1];
 PHP
     );
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['warning', 'The warning.'], $status);
+    $data = [
+      'message' => 'The warning.',
+      'x' => 1,
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['warning', $data], $status);
   }
 
 }

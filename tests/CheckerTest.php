@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use \PHPUnit\Framework\TestCase;
 
 // we need to import Checker class before we can extend it.
@@ -9,19 +11,21 @@ class DummyChecker extends Checker {
 
   protected $name;
   protected $testStatus;
+  protected $testMessage;
+  protected $testData;
 
-  public function __construct($name = '', $status = '', $warnings = [], $errors = []) {
+  public function __construct(string $name = '', string $status = '', string $message = '', array $data = []) {
     $this->name = $name;
     $this->testStatus = $status;
-    $this->warnings = array_merge($this->warnings, $warnings);
-    $this->errors = array_merge($this->errors, $errors);
+    $this->testMessage = $message;
+    $this->testData = $data;
   }
 
-  protected function check2(): string {
+  protected function check2(): void {
     if ($this->testStatus == 'exception') {
       throw new \Exception('test-error');
     }
-    return $this->testStatus;
+    $this->setStatus($this->testStatus, $this->testMessage, $this->testData);
   }
 
 }
@@ -42,14 +46,28 @@ class CheckerTest extends TestCase {
   }
 
   /**
-   * @covers ::check
    * @covers ::getStatusInfo
+   * @covers ::setStatus
+   * @covers ::check
    */
-  public function testCheckStatusSuccess(): void {
-    $expected = ['xxx', ''];
+  public function testCheckStatusNoData(): void {
+    $expected = ['status', ''];
     $c = new DummyChecker('', $expected[0]);
     $c->check();
     $data = $c->getStatusInfo();
+    $this->assertEquals($expected, $data);
+  }
+
+  /**
+   * @covers ::getStatusInfo
+   * @covers ::setStatus
+   * @covers ::check
+   */
+  public function testCheckStatusYesData(): void {
+    $c = new DummyChecker('', 'status', 'msg');
+    $c->check();
+    $data = $c->getStatusInfo();
+    $expected = ['status', json_encode(['message' => 'msg'])];
     $this->assertEquals($expected, $data);
   }
 
@@ -60,69 +78,28 @@ class CheckerTest extends TestCase {
     $c = new DummyChecker('', 'exception');
     $c->check();
     $data = $c->getStatusInfo();
-    $expected = ['error', 'DummyChecker::check2(): test-error'];
-    $this->assertEquals($expected, $data);
+    $expected = [
+      'message' => 'Internal error.',
+      'function' => 'DummyChecker::check2()',
+      'exception' => 'test-error',
+    ];
+    $expected = json_encode($expected);
+    $this->assertEquals(['error', $expected], $data);
   }
 
   /**
    * @covers ::getStatusInfo
    */
-  public function testGetStatusInfoWarning(): void {
-    $w = 'test-warning';
-    $c = new DummyChecker('', '', [$w]);
+  public function testGetStatusInfoAll(): void {
+    $c = new DummyChecker('', 'error', 'Message', ['key' => 'value']);
     $c->check();
     $data = $c->getStatusInfo();
-    $expected = ['warning', $w];
-    $this->assertEquals($expected, $data);
-  }
-
-  /**
-   * @covers ::getStatusInfo
-   */
-  public function testGetStatusInfoWarnings(): void {
-    $w = ['test-warning1', 'test-warning2'];
-    $c = new DummyChecker('', '', $w);
-    $c->check();
-    $data = $c->getStatusInfo();
-    $expected = ['warning', implode('; ', $w)];
-    $this->assertEquals($expected, $data);
-  }
-
-  /**
-   * @covers ::getStatusInfo
-   */
-  public function testGetStatusInfoError(): void {
-    $e = 'test-error';
-    $c = new DummyChecker('', '', [], [$e]);
-    $c->check();
-    $data = $c->getStatusInfo();
-    $expected = ['error', $e];
-    $this->assertEquals($expected, $data);
-  }
-
-  /**
-   * @covers ::getStatusInfo
-   */
-  public function testGetStatusInfoErrors(): void {
-    $e = ['test-error1', 'test-error2'];
-    $c = new DummyChecker('', '', [], $e);
-    $c->check();
-    $data = $c->getStatusInfo();
-    $expected = ['error', implode('; ', $e)];
-    $this->assertEquals($expected, $data);
-  }
-
-  /**
-   * @covers ::getStatusInfo
-   */
-  public function testGetStatusInfoWarningError(): void {
-    $w = 'test-warning';
-    $e = 'test-error';
-    $c = new DummyChecker('', '', [$w], [$e]);
-    $c->check();
-    $data = $c->getStatusInfo();
-    $expected = ['error', implode('; ', [$w, $e])];
-    $this->assertEquals($expected, $data);
+    $expected = [
+      'message' => 'Message',
+      'key' => 'value',
+    ];
+    $expected = json_encode($expected);
+    $this->assertEquals(['error', $expected], $data);
   }
 
 }

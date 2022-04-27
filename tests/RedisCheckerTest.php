@@ -125,7 +125,13 @@ class RedisCheckerTest extends TestCase {
     $c = new RedisChecker(...$connection);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['error', 'RedisChecker::check2(): Connection refused'], $status);
+    $data = [
+      'message' => 'Internal error.',
+      'function' => 'RedisChecker::check2()',
+      'exception' => 'Connection refused',
+    ];
+    $data = json_encode($data);
+    $this->assertEquals(['error', $data], $status);
   }
 
 }
