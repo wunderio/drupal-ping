@@ -1104,7 +1104,7 @@ class FsSchemeCleanupChecker extends Checker {
     }
 
     if ($removed > 0) {
-      $this->errors[] = "removed=$removed Orphaned fs check files deleted.";
+      $this->warnings[] = "removed=$removed Orphaned fs check files deleted.";
       return '';
     }
 
