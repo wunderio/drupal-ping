@@ -11,6 +11,15 @@ class AppTest extends TestCase {
     require_once 'init.php';
   }
 
+  protected function setUp(): void {
+    // Cleanup env before every test
+    foreach (getenv() as $key => $value) {
+      if (preg_match('/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
+        putenv($key);
+      }
+    }
+  }
+
   /**
    * @covers ::__construct
    */
@@ -85,69 +94,67 @@ class AppTest extends TestCase {
   }
 
   /**
-   * @covers ::getDebugCode
+   * @covers ::getToken
    */
-  public function testGetDebugCodePingDebug(): void {
+  public function testGetTokenSettings(): void {
     $a = new App();
-    $code = '1234';
-    $settings = ['ping_debug' => $code];
-    $data = $a->getDebugCode($settings);
-    $this->assertEquals($code, $data);
+    $token = '1234';
+    $settings = ['ping_token' => $token];
+    $data = $a->getToken($settings);
+    $this->assertEquals($token, $data);
   }
 
   /**
-   * @covers ::getDebugCode
+   * @covers ::getToken
    */
-  public function testGetDebugCodeSilta(): void {
+  public function testGetTokenEnvToken(): void {
+    $token = '1234';
+    putenv("PING_TOKEN=$token");
     $a = new App();
-    putenv('SILTA_CLUSTER=1');
-    putenv('PROJECT_NAME=a');
-    putenv('ENVIRONMENT_NAME=b');
+    $data = $a->getToken([]);
+    $this->assertEquals($token, $data);
+  }
+
+  /**
+   * @covers ::getToken
+   */
+  public function testGetTokenEnv(): void {
+    $a = new App();
+    foreach ([
+      'DB_NAME',
+      'ENVIRONMENT_NAME',
+      'GIT_TEST',
+      'PHP_TEST',
+      'PROJECT_NAME',
+      'SMTP',
+      'SSMTP',
+      'VARNISH_TEST',
+      'WARDEN_TEST',
+    ] as $key) {
+      putenv("$key=test");
+    }
     $settings = [];
-    $data = $a->getDebugCode($settings);
-    putenv('SILTA_CLUSTER');
-    putenv('PROJECT_NAME');
-    putenv('ENVIRONMENT_NAME');
-    $this->assertEquals('8ca2ed590cf2ea2404f2e67641bcdf50', $data);
+    $data = $a->getToken($settings);
+    $this->assertEquals('7c3df2116154d33f51c6d77db9aa3dbc', $data);
   }
 
   /**
-   * @covers ::getDebugCode
+   * @covers ::getToken
    */
-  public function testGetDebugCodeVirtualServer(): void {
-    $a = new App();
-    putenv('DB_HOST_DRUPAL=host');
-    putenv('DB_NAME_DRUPAL=name');
-    putenv('DB_PASS_DRUPAL=pass');
-    putenv('DB_PORT_DRUPAL=port');
-    putenv('DB_USER_DRUPAL=user');
-    $settings = [];
-    $data = $a->getDebugCode($settings);
-    putenv('DB_HOST_DRUPAL');
-    putenv('DB_NAME_DRUPAL');
-    putenv('DB_PASS_DRUPAL');
-    putenv('DB_PORT_DRUPAL');
-    putenv('DB_USER_DRUPAL');
-    $this->assertEquals('9ea396789d54a514eb63e12126c5ae4a', $data);
-  }
-
-  /**
-   * @covers ::getDebugCode
-   */
-  public function testGetDebugCodeHashSalt(): void {
+  public function testGetTokenHashSalt(): void {
     $a = new App();
     $settings = ['hash_salt' => 'qwertyuiop'];
-    $data = $a->getDebugCode($settings);
+    $data = $a->getToken($settings);
     $this->assertEquals('6eea9b7ef19179a06954edd0f6c05ceb', $data);
   }
 
   /**
-   * @covers ::getDebugCode
+   * @covers ::getToken
    */
-  public function testGetDebugCodeHostName(): void {
+  public function testGetTokenHostName(): void {
     $a = new App();
     $settings = [];
-    $data = $a->getDebugCode($settings);
+    $data = $a->getToken($settings);
     $this->assertEquals(md5(gethostname()), $data);
   }
 

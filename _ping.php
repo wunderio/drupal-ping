@@ -125,15 +125,15 @@ class App {
     // if mod_php fails and then matching the string.
     print "$msg $code" . PHP_EOL;
 
-    $code = $this->getDebugCode($settings);
-    if (!$this->isDebug($code) && !$this->isCli()) {
+    $token = $this->getToken($settings);
+    if (!$this->isDebug($token) && !$this->isCli()) {
       return;
     }
 
     if ($this->isCli()) {
       print <<<TXT
 
-<p>Debug code: $code</p>
+<p>Debug token: $token</p>
 
 TXT;
     }
@@ -315,7 +315,7 @@ TXT;
   }
 
   /**
-   * Compute Debug Code.
+   * Provide Debug Access Token.
    *
    * This is needed to limit access to debug info over the web.
    * Many methods are tried in sequence to define the code.
@@ -324,46 +324,47 @@ TXT;
    *   The Drupal settings.
    *
    * @return string
-   *   Access code.
+   *   Access token.
    */
-  public function getDebugCode(array $settings): string {
+  public function getToken(array $settings): string {
 
-    // $settings['ping_debug'].
-    if (!empty($settings['ping_debug'])) {
-      $code = $settings['ping_debug'];
-      return $code;
+    // $settings['ping_token'].
+    if (!empty($settings['ping_token'])) {
+      $token = $settings['ping_token'];
+      return $token;
     }
 
-    // Echo "$PROJECT_NAME-$ENVIRONMENT_NAME" | md5sum.
-    if (!empty(getenv('SILTA_CLUSTER'))) {
-      $proj = getenv('PROJECT_NAME');
-      $env = getenv('ENVIRONMENT_NAME');
-      $code = md5("$proj-$env");
-      return $code;
+    // Env(PING_TOKEN).
+    if (!empty(getenv('PING_TOKEN'))) {
+      $token = (string) getenv('PING_TOKEN');
+      return $token;
     }
 
-    // Echo "$DB_HOST_DRUPAL-$DB_NAME_DRUPAL-$DB_PASS_DRUPAL-$DB_PORT_DRUPAL-$DB_USER_DRUPAL"
-    // | md5sum.
-    if (!empty(getenv('DB_NAME_DRUPAL'))) {
-      $host = getenv('DB_HOST_DRUPAL');
-      $name = getenv('DB_NAME_DRUPAL');
-      $pass = getenv('DB_PASS_DRUPAL');
-      $port = getenv('DB_PORT_DRUPAL');
-      $user = getenv('DB_USER_DRUPAL');
-      $code = md5("$host-$name-$pass-$port-$user");
-      return $code;
+    // Md5(Concatenated-values-of-some-env-variables).
+    $token = [];
+    $env = getenv();
+    ksort($env);
+    foreach ($env as $key => $value) {
+      if (preg_match('/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
+        $token[] = $value;
+      }
+    }
+    if (!empty($token)) {
+      $token = implode('-', $token);
+      $token = md5($token);
+      return $token;
     }
 
     // Md5($settings['hash_salt']).
     if (!empty($settings['hash_salt'])) {
-      $code = md5($settings['hash_salt']);
-      return $code;
+      $token = md5($settings['hash_salt']);
+      return $token;
     }
 
-    // Hostname | md5sum.
-    $code = gethostname();
-    $code = md5($code);
-    return $code;
+    // Md5(Hostname).
+    $token = gethostname();
+    $token = md5($token);
+    return $token;
   }
 
   /**
@@ -380,15 +381,15 @@ TXT;
   /**
    * Detect if debug information should be provided on request.
    *
-   * Currently it is matching '?debug=code'
+   * Currently it is matching '?debug=token'
    *
-   * @param string $code
-   *   The code to be checked if present in the request.
+   * @param string $token
+   *   The token to be checked if present in the request.
    *
    * @return bool
    *   Return if we need to emit debugging info.
    */
-  public function isDebug(string $code): bool {
+  public function isDebug(string $token): bool {
 
     // @codingStandardsIgnoreLine DrupalPractice.Variables.GetRequestData.SuperglobalAccessedWithVar
     $debug = $_GET['debug'] ?? NULL;
@@ -396,7 +397,7 @@ TXT;
       return FALSE;
     }
 
-    return $debug == $code;
+    return $debug == $token;
   }
 
 }

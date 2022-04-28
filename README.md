@@ -33,7 +33,8 @@ composer require wunderio/drupal-ping:^2
 
 ### v2.3
 
-- Refactor error messages into JSON for easier automation.
+- Refactor error messages into JSON for easier automation
+- Refactor debug token generation
 
 ### v2.2
 
@@ -55,9 +56,9 @@ Breaking Changes!
 ## Usage
 
 * Visit `/_ping.php` to get a system status
-* By using `?debug=token` additional status check table and time profiling information is displayed.
-  * See [Ping Development & Testing](#ping-development--testing) how to obtain the `token` value.
-* Find slow checks and checks errors in logs.
+* By using `?debug=token` additional status check table and time profiling information is displayed
+  * See [Debug Mode](#debug-mode) how to obtain the `token` value
+* Find slow checks and checks errors in logs
 
 ## Checks
 
@@ -132,6 +133,23 @@ Use of `$status->setName()` and `$status->set()` to define the result.
 The PHP file does not need to contain functions, just plain PHP is enough.
 Check it out how other checks are created in the `_ping.php`.
 
+## Debug Mode
+
+`_ping.php` can be accessed over the web.
+For example `https://example.com/_ping.php`.
+It can also be accessed from the shell `cd /path/web ; php _ping.php`.
+From the shell output the debug token can be attained.
+Then visit the ping again with `https://example.com/_ping.php?debug=token`.
+
+The token is generated in one of the following ways.
+These methods are listed by precedance.
+If earlier fails (is empty), then next one is tried.
+* Drupal settings `$settings['ping_token']`
+* Environment variable `PING_TOKEN`
+* Md5 of the combination of environment variable values where the variable names matches regex `/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/`
+* Md5 of Drupal settings `$settings['hash_salt']`
+* Md5 of the hostname
+
 ## Ping Development & Testing
 
 - `lando install` - Install dev dependencies without Drupal
@@ -142,11 +160,6 @@ Check it out how other checks are created in the `_ping.php`.
 Note: the Lando setup is defined so that D7 and D89 branched can be easily switched
 both running their own own setup. Drupal and composer installations wont clash.
 They have separate dirs.
-
-`_ping.php` can be accessed over the lando url.
-For example `http://localhost:51418/_ping.php`.
-It can also be accessed from the shell `cd /app/drupal9/web ; php _ping.php`.
-From the shell output the debug token can be attained.
 
 ## Maintainers
 
