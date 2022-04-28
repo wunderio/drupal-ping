@@ -146,7 +146,7 @@ These methods are listed by precedance.
 If earlier fails (is empty), then next one is tried.
 * Drupal settings `$settings['ping_token']`
 * Environment variable `PING_TOKEN`
-* Md5 of the combination of environment variable values where the variable names matches regex `/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/`
+* Md5 of the combination of environment variable values where the variable names matches regex `/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/` - NB! This method assumes environment variable consistency between webserver and shell.
 * Md5 of Drupal settings `$settings['hash_salt']`
 * Md5 of the hostname
 
