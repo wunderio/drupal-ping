@@ -9,7 +9,7 @@
 
 $status = 'warning';
 $message = 'Too bad.';
-$data = [
+$payload = [
   'file' => '/tmp/xxx',
   'count' => 99,
 ];

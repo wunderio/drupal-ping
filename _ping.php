@@ -426,11 +426,11 @@ abstract class Checker {
   protected $name = '';
 
   /**
-   * The variables of the message.
+   * The payload of the message.
    *
    * @var array
    */
-  protected $data = [];
+  protected $payload = [];
 
   /*
    * Configure the checker.
@@ -459,7 +459,7 @@ abstract class Checker {
   public function getStatusInfo(): array {
     return [
       $this->status,
-      $this->data,
+      $this->payload,
     ];
   }
 
@@ -472,19 +472,19 @@ abstract class Checker {
    *   Status: 'disabled', 'success', 'warning', 'error'.
    * @param string $message
    *   The message of the status.
-   * @param array $data
+   * @param array $payload
    *   Additional details.
    */
-  protected function setStatus(string $status, string $message = '', array $data = []): void {
+  protected function setStatus(string $status, string $message = '', array $payload = []): void {
     $this->status = $status;
-    $d = [];
+    $p = [];
     if (!empty($message)) {
-      $d = array_merge($d, ['message' => $message]);
+      $p = array_merge($p, ['message' => $message]);
     }
-    if (!empty($data)) {
-      $d = array_merge($d, $data);
+    if (!empty($payload)) {
+      $p = array_merge($p, $payload);
     }
-    $this->data = $d;
+    $this->payload = $p;
   }
 
   /**
@@ -1238,13 +1238,13 @@ class CustomPingChecker extends Checker {
     // $status = 'warning';
     // $status = 'success';
     // $message = '...'; // The error message.
-    // $data[] = [...]; // Debug data.
+    // $payload[] = [...]; // Debug payload.
     $status = 'success';
     $message = '';
-    $data = [];
+    $payload = [];
     include '_ping.custom.php';
 
-    $this->setStatus($status, $message, $data);
+    $this->setStatus($status, $message, $payload);
   }
 
 }

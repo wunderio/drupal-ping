@@ -57,16 +57,16 @@ PHP
 <?php
 \$status = 'warning';
 \$message = 'The warning.';
-\$data = ['x' => 1];
+\$payload = ['x' => 1];
 PHP
     );
     $c->check();
     $status = $c->getStatusInfo();
-    $data = [
+    $payload = [
       'message' => 'The warning.',
       'x' => 1,
     ];
-    $this->assertEquals(['warning', $data], $status);
+    $this->assertEquals(['warning', $payload], $status);
   }
 
 }
