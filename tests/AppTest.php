@@ -28,20 +28,36 @@ class AppTest extends TestCase {
     global $_logs;
     $_logs = NULL;
     $a->logErrors([
-      'check1' => 'msg1',
-      'check2' => 'msg2',
-    ], 'test');
+      ['check1' => 'msg1'],
+      ['check2' => 'msg2'],
+    ]);
     $expected = [
-      'ping: test: check1: msg1',
-      'ping: test: check2: msg2',
+      'ping: {"check1":"msg1"}',
+      'ping: {"check2":"msg2"}',
     ];
     $this->assertEquals($expected, $_logs);
   }
 
   /**
-   * @covers ::getSlow
+   * @covers ::status2logs
    */
-  public function testGetSlow(): void {
+  public function testStatus2Logs(): void {
+    $a = new App();
+    $data = $a->status2logs(['a' => [], 'b' => ['x' => 'y']], 'test_status');
+    $this->assertEquals([[
+      'check' => 'a',
+      'status' => 'test_status',
+    ], [
+      'check' => 'b',
+      'status' => 'test_status',
+      'x' => 'y',
+    ]], $data);
+  }
+
+  /**
+   * @covers ::profile2logs
+   */
+  public function testProfile2logs(): void {
     $a = new App();
     $p = new Profile();
 
@@ -53,10 +69,19 @@ class AppTest extends TestCase {
     $name2 = 'test2';
     $p->measure($func2, $name2);
 
-    $data = $a->getSlow($p);
+    $slows = $p->getByDuration(1000, NULL);
+    $data = $a->profile2logs($slows, 'slow');
+
     $this->assertIsArray($data);
     $this->assertCount(1, $data);
-    $this->assertMatchesRegularExpression('/^duration=\d+\.\d+ ms$/', $data['test2']);
+    $data = reset($data);
+    $this->assertIsFloat($data['duration']);
+    unset($data['duration']);
+    $this->assertEquals([
+      "check" => "test2",
+      "status" => "slow",
+      "unit" => "ms",
+    ], $data);
   }
 
   /**

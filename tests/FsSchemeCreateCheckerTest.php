@@ -18,7 +18,7 @@ class FsSchemeCreateCheckerTest extends TestCase {
     $c = new FsSchemeCreateChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
     $file = $c->getFile();
     $this->assertFileExists($file);
   }

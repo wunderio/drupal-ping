@@ -99,16 +99,19 @@ class App {
 
     $this->profile->stop();
 
-    $slow = $this->getSlow($this->profile);
-    $this->logErrors($slow, 'slow');
+    $slows = $this->profile->getByDuration(1000, NULL);
+    $payloads = $this->profile2logs($slows, 'slow');
+    $this->logErrors($payloads);
 
-    $warnings = $this->status->getBySeverity('warning');
-    $this->logErrors($warnings, 'warning');
+    $payloads = $this->status->getBySeverity('warning');
+    $payloads = $this->status2logs($payloads, 'warning');
+    $this->logErrors($payloads);
 
-    $errors = $this->status->getBySeverity('error');
+    $payloads = $this->status->getBySeverity('error');
+    $payloads = $this->status2logs($payloads, 'error');
+    $this->logErrors($payloads);
 
-    if (!empty($errors)) {
-      $this->logErrors($errors, 'error');
+    if (!empty($payloads)) {
       $code = 500;
       $msg = 'INTERNAL ERROR';
     }
@@ -179,9 +182,9 @@ TXT;
   public function check(string $class, array $args = []): object {
     $checker = new $class(...$args);
     $this->profile->measure([$checker, 'check'], $checker->getName());
-    [$s, $i] = $checker->getStatusInfo();
+    [$status, $payload] = $checker->getStatusInfo();
     $name = $checker->getName();
-    $this->status->set($name, $s, $i);
+    $this->status->set($name, $status, $payload);
     return $checker;
   }
 
@@ -224,14 +227,66 @@ TXT;
   }
 
   /**
+   * Convert Status array for logging.
+   *
+   * @param array $payloads
+   *   List of payloads.
+   * @param string $status
+   *   Set status for all payloads.
+   *
+   * @return array
+   *   Return upgraded payload array.
+   */
+  public function status2logs(array $payloads, string $status): array {
+    $payloads2 = [];
+    foreach ($payloads as $check => $payload) {
+      $payloads2[] = array_merge([
+        'check' => $check,
+        'status' => $status,
+      ], $payload);
+    }
+    return $payloads2;
+  }
+
+  /**
+   * Log all slow requests.
+   *
+   * Fetch all slow requests from the profiling system,
+   * and log them.
+   *
+   * @param array $slows
+   *   Slow array.
+   * @param string $status
+   *   The status to assign.
+   *
+   * @return array
+   *   Return array of slow messages.
+   */
+  public function profile2logs(array $slows, string $status): array {
+    $payloads = [];
+    foreach ($slows as $check => $duration) {
+      $payloads[] = [
+        'check' => $check,
+        'status' => $status,
+        'duration' => $duration,
+        'unit' => 'ms',
+      ];
+    }
+    return $payloads;
+  }
+
+  /**
    * Log errors according to the environment.
    *
    * We recognize following envs:
    * - silta -> stderr.
    * - lando -> stderr.
    * - the rest -> syslog().
+   *
+   * @param array $payloads
+   *   Array of payload arrays, containing error message and additional info.
    */
-  public function logErrors(array $errors, string $category): void {
+  public function logErrors(array $payloads): void {
 
     if (!empty(getenv('TESTING'))) {
       $logger = function (string $msg) {
@@ -253,26 +308,10 @@ TXT;
       };
     }
 
-    foreach ($errors as $name => $message) {
-      $logger("ping: $category: $name: $message");
+    foreach ($payloads as $payload) {
+      $payload = json_encode($payload);
+      $logger("ping: $payload");
     }
-  }
-
-  /**
-   * Log all slow requests.
-   *
-   * Fetch all slow requests from the profiling system,
-   * and log them.
-   *
-   * @return array
-   *   return array of slow messages.
-   */
-  public function getSlow(object $profile): array {
-    $slow = $profile->getByDuration(1000, NULL);
-    foreach ($slow as &$value) {
-      $value = "duration=$value ms";
-    }
-    return $slow;
   }
 
   /**
@@ -414,13 +453,13 @@ abstract class Checker {
    * @return array
    *   Array of [
    *     (string) $status ('success'|'disabled'|'error'|'warning'),
-   *     (string) $info (warning or error info)
+   *     (array) $payload (related details)
    *   ]
    */
   public function getStatusInfo(): array {
     return [
       $this->status,
-      empty($this->data) ? '' : json_encode($this->data),
+      $this->data,
     ];
   }
 
@@ -1388,13 +1427,13 @@ class Status {
    *   The name of object of the status.
    * @param string $severity
    *   One of: 'error', 'warning', 'success', 'disabled'.
-   * @param string $message
-   *   Further details on the severity. Optional.
+   * @param array $payload
+   *   Payload of message/details on the severity. Optional.
    */
-  public function set(string $name, string $severity, string $message = ''): void {
+  public function set(string $name, string $severity, array $payload = []): void {
     $this->items[$name] = [
       'severity' => $severity,
-      'message' => $message,
+      'payload' => $payload,
     ];
   }
 
@@ -1414,13 +1453,13 @@ class Status {
    * Filter check results by status code.
    *
    * @return array
-   *   The format is ['name' => 'message'].
+   *   The format is ['name' => 'payload'].
    */
   public function getBySeverity(string $severity): array {
     $filtered = [];
     foreach ($this->items as $name => $details) {
       if ($details['severity'] == $severity) {
-        $filtered[$name] = $details['message'];
+        $filtered[$name] = $details['payload'];
       }
     }
     return $filtered;
@@ -1438,7 +1477,10 @@ class Status {
   public function getTextTable(string $separator): string {
     $lines = [];
     foreach ($this->items as $name => $details) {
-      $lines[] = sprintf('%-20s %-10s %s', $name, $details['severity'], $details['message']);
+      $severity = $details['severity'];
+      $payload = $details['payload'];
+      $payload = empty($payload) ? '' : json_encode($payload);
+      $lines[] = sprintf('%-20s %-10s %s', $name, $severity, $payload);
     }
     $lines = implode($separator, $lines);
     return $lines;

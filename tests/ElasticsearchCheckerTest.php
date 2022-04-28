@@ -45,7 +45,7 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -55,7 +55,7 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker([]);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -76,7 +76,7 @@ class ElasticsearchCheckerTest extends TestCase {
     $c = new ElasticsearchChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -102,7 +102,6 @@ class ElasticsearchCheckerTest extends TestCase {
       'errno' => 35,
       'errstr' => 'error:1408F10B:SSL routines:ssl3_get_record:wrong version number',
     ]];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 
@@ -153,7 +152,6 @@ class ElasticsearchCheckerTest extends TestCase {
       'errno' => 7,
       'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
     ]];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 
@@ -189,7 +187,6 @@ class ElasticsearchCheckerTest extends TestCase {
         'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['warning', $data], $status);
   }
 
@@ -230,7 +227,6 @@ class ElasticsearchCheckerTest extends TestCase {
         'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['warning', $data], $status);
   }
 
@@ -266,7 +262,6 @@ class ElasticsearchCheckerTest extends TestCase {
         'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 
@@ -307,7 +302,6 @@ class ElasticsearchCheckerTest extends TestCase {
         'errstr' => 'Failed to connect to elasticsearch port 9201: Connection refused',
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
 
   }

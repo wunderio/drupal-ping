@@ -19,7 +19,7 @@ class CustomPingCheckerTest extends TestCase {
     file_put_contents('_ping.custom.php', '<?php');
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -30,7 +30,7 @@ class CustomPingCheckerTest extends TestCase {
     unlink('_ping.custom.php');
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -45,7 +45,7 @@ PHP
     );
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['custom', ''], $status);
+    $this->assertEquals(['custom', []], $status);
   }
 
   /**
@@ -66,7 +66,6 @@ PHP
       'message' => 'The warning.',
       'x' => 1,
     ];
-    $data = json_encode($data);
     $this->assertEquals(['warning', $data], $status);
   }
 

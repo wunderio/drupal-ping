@@ -54,7 +54,7 @@ class RedisCheckerTest extends TestCase {
     $c = new RedisChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -86,7 +86,7 @@ class RedisCheckerTest extends TestCase {
     $c = new RedisChecker(...$connection);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -130,7 +130,6 @@ class RedisCheckerTest extends TestCase {
       'function' => 'RedisChecker::check2()',
       'exception' => 'Connection refused',
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 

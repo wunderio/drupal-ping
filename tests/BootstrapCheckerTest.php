@@ -17,7 +17,7 @@ class BootstrapCheckerTest extends TestCase {
   public function testCheckSuccess(): void {
     global $_bootstrapChecker;
     $status = $_bootstrapChecker->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**

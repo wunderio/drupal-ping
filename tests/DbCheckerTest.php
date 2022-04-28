@@ -31,7 +31,7 @@ class DbCheckerTest extends TestCase {
     $c = new DbChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -49,7 +49,6 @@ class DbCheckerTest extends TestCase {
       'actual_count' => 0,
       'expected_count' => 1,
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 

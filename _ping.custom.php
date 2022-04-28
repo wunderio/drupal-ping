@@ -13,3 +13,5 @@ $data = [
   'file' => '/tmp/xxx',
   'count' => 99,
 ];
+
+sleep(1);

@@ -23,7 +23,7 @@ class StatusTest extends TestCase {
     $expected = [
       $name => [
         'severity' => $status,
-        'message' => '',
+        'payload' => [],
       ],
     ];
     $this->assertEquals($expected, $data);
@@ -36,13 +36,13 @@ class StatusTest extends TestCase {
     $s = new Status();
     $name = 'test';
     $status = 'success';
-    $msg = 'Test';
+    $msg = ['msg' => 'Test'];
     $s->set($name, $status, $msg);
     $data = $s->get();
     $expected = [
       $name => [
         'severity' => $status,
-        'message' => $msg,
+        'payload' => $msg,
       ],
     ];
     $this->assertEquals($expected, $data);
@@ -66,7 +66,7 @@ class StatusTest extends TestCase {
     $data = $s->getBySeverity($status1);
 
     $expected = [
-      $name1 => '',
+      $name1 => [],
     ];
     $this->assertEquals($expected, $data);
   }
@@ -80,7 +80,7 @@ class StatusTest extends TestCase {
 
     $name1 = 'test1';
     $status1 = 'success';
-    $msg1 = 'Test';
+    $msg1 = ['msg' => 'Test'];
     $s->set($name1, $status1, $msg1);
 
     $name2 = 'test2';
@@ -91,7 +91,7 @@ class StatusTest extends TestCase {
     $data = $s->getTextTable($sep);
 
     $expected = [
-      "test1                success    Test",
+      "test1                success    {\"msg\":\"Test\"}",
       "test2                disabled   ",
     ];
     $expected = implode($sep, $expected);

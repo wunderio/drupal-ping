@@ -56,7 +56,7 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker();
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -66,7 +66,7 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker([]);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['disabled', ''], $status);
+    $this->assertEquals(['disabled', []], $status);
   }
 
   /**
@@ -83,7 +83,7 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -108,7 +108,6 @@ class MemcacheCheckerTest extends TestCase {
         'error' => 'Connection refused',
       ]],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 
@@ -134,7 +133,6 @@ class MemcacheCheckerTest extends TestCase {
         'error' => 'Cannot assign requested address',
       ]],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 
@@ -158,7 +156,7 @@ class MemcacheCheckerTest extends TestCase {
     $c = new MemcacheChecker($connections);
     $c->check();
     $status = $c->getStatusInfo();
-    $this->assertEquals(['success', ''], $status);
+    $this->assertEquals(['success', []], $status);
   }
 
   /**
@@ -191,7 +189,6 @@ class MemcacheCheckerTest extends TestCase {
         ],
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['warning', $data], $status);
   }
 
@@ -230,7 +227,6 @@ class MemcacheCheckerTest extends TestCase {
         ],
       ],
     ];
-    $data = json_encode($data);
     $this->assertEquals(['error', $data], $status);
   }
 

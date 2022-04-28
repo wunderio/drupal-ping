@@ -51,7 +51,7 @@ class CheckerTest extends TestCase {
    * @covers ::check
    */
   public function testCheckStatusNoData(): void {
-    $expected = ['status', ''];
+    $expected = ['status', []];
     $c = new DummyChecker('', $expected[0]);
     $c->check();
     $data = $c->getStatusInfo();
@@ -67,7 +67,7 @@ class CheckerTest extends TestCase {
     $c = new DummyChecker('', 'status', 'msg');
     $c->check();
     $data = $c->getStatusInfo();
-    $expected = ['status', json_encode(['message' => 'msg'])];
+    $expected = ['status', ['message' => 'msg']];
     $this->assertEquals($expected, $data);
   }
 
@@ -83,7 +83,6 @@ class CheckerTest extends TestCase {
       'function' => 'DummyChecker::check2()',
       'exception' => 'test-error',
     ];
-    $expected = json_encode($expected);
     $this->assertEquals(['error', $expected], $data);
   }
 
@@ -98,7 +97,6 @@ class CheckerTest extends TestCase {
       'message' => 'Message',
       'key' => 'value',
     ];
-    $expected = json_encode($expected);
     $this->assertEquals(['error', $expected], $data);
   }
 
