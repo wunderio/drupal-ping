@@ -345,7 +345,7 @@ TXT;
     $env = getenv();
     ksort($env);
     foreach ($env as $key => $value) {
-      if (preg_match('/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
+      if (preg_match('/^(DB|ENVIRONMENT_NAME|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
         $token[] = $value;
       }
     }

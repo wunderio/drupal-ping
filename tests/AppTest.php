@@ -14,7 +14,7 @@ class AppTest extends TestCase {
   protected function setUp(): void {
     // Cleanup env before every test
     foreach (getenv() as $key => $value) {
-      if (preg_match('/^(DB|ENVIRONMENT_NAME|GIT|PHP|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
+      if (preg_match('/^(DB|ENVIRONMENT_NAME|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
         putenv($key);
       }
     }
@@ -123,8 +123,6 @@ class AppTest extends TestCase {
     foreach ([
       'DB_NAME',
       'ENVIRONMENT_NAME',
-      'GIT_TEST',
-      'PHP_TEST',
       'PROJECT_NAME',
       'SMTP',
       'SSMTP',
@@ -135,7 +133,8 @@ class AppTest extends TestCase {
     }
     $settings = [];
     $data = $a->getToken($settings);
-    $this->assertEquals('7c3df2116154d33f51c6d77db9aa3dbc', $data);
+    $expected = '4a0270283e75b2582fb73459df6f488e';
+    $this->assertEquals($expected, $data);
   }
 
   /**
