@@ -118,6 +118,18 @@ class AppTest extends TestCase {
   /**
    * @covers ::getToken
    */
+  public function testGetTokenTrim(): void {
+    $token = "test\n\ntest";
+    putenv("ENVIRONMENT_NAME=$token");
+    $a = new App();
+    $data = $a->getToken([]);
+    $expected = md5('testtest');
+    $this->assertEquals($expected, $data);
+  }
+
+  /**
+   * @covers ::getToken
+   */
   public function testGetTokenEnv(): void {
     $a = new App();
     foreach ([

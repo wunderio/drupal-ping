@@ -346,6 +346,9 @@ TXT;
     ksort($env);
     foreach ($env as $key => $value) {
       if (preg_match('/^(DB|ENVIRONMENT_NAME|PROJECT_NAME|S+MTP|VARNISH|WARDEN)/', $key)) {
+        // Remove newlines and other whitespace,
+        // because the interpretation differs from shell to web.
+        $value = preg_replace('/\s/', '', $value);
         $token[] = $value;
       }
     }
