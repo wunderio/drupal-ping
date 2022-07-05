@@ -1,41 +1,41 @@
 {
-  "name": "wunderio/drupal-ping",
-  "type": "web-dropin",
-  "license": "MIT",
-  "description": "Drupal health check endpoint for load balancers",
-  "homepage": "https://github.com/wunderio/drupal-ping",
-  "authors": [
-    {
-      "name": "Janne Koponen",
-      "email": "janne.koponen@wunder.io",
-      "homepage": "https://github.com/tharna",
-      "role": "Developer"
+    "name": "wunderio/drupal-ping",
+    "type": "web-dropin",
+    "license": "MIT",
+    "description": "Drupal health check endpoint for load balancers",
+    "homepage": "https://github.com/wunderio/drupal-ping",
+    "authors": [
+        {
+            "name": "Janne Koponen",
+            "email": "janne.koponen@wunder.io",
+            "homepage": "https://github.com/tharna",
+            "role": "Developer"
+        },
+        {
+            "name": "Ragnar Kurm",
+            "email": "ragnar.kurm@wunder.io",
+            "homepage": "https://github.com/ragnarkurmwunder",
+            "role": "Developer"
+        }
+    ],
+    "keywords": [
+        "drupal",
+        "ping",
+        "healthcheck"
+    ],
+    "require": {
+        "drupal/core": "^8 || ^9",
+        "koodimonni/composer-dropin-installer": ">=1.0.1"
     },
-    {
-      "name": "Ragnar Kurm",
-      "email": "ragnar.kurm@wunder.io",
-      "homepage": "https://github.com/ragnarkurmwunder",
-      "role": "Developer"
+    "require-dev": {
+        "wunderio/code-quality": "^2",
+        "phpunit/phpunit": "^9"
+    },
+    "config": {
+        "allow-plugins": {
+            "koodimonni/composer-dropin-installer": true,
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "phpro/grumphp": true
+        }
     }
-  ],
-  "keywords": [
-    "drupal",
-    "ping",
-    "healthcheck"
-  ],
-  "require": {
-    "drupal/core": "^8 || ^9",
-    "koodimonni/composer-dropin-installer": ">=1.0.1"
-  },
-  "require-dev": {
-    "wunderio/code-quality": "^2",
-    "phpunit/phpunit": "^9"
-  },
-  "config": {
-    "allow-plugins": {
-      "koodimonni/composer-dropin-installer": true,
-      "dealerdirect/phpcodesniffer-composer-installer": true,
-      "phpro/grumphp": true
-    }
-  }
 }

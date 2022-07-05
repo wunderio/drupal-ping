@@ -5,8 +5,6 @@
  * Autoloader for php stan to be able to reach all functions.
  */
 
-require_once '/app/drupal9/vendor//symfony/http-foundation/Request.php';
-
 require_once '/app/drupal9/web/core/lib/Drupal/Core/Installer/InstallerRedirectTrait.php';
 require_once '/app/drupal9/vendor/symfony/http-kernel/TerminableInterface.php';
 require_once '/app/drupal9/vendor/symfony/http-kernel/HttpKernelInterface.php';
@@ -28,4 +26,3 @@ require_once '/app/drupal9/web/core/lib/Drupal/Core/Config/ConfigBase.php';
 require_once '/app/drupal9/web/core/lib/Drupal/Core/Config/StorableConfigBase.php';
 require_once '/app/drupal9/web/core/lib/Drupal/Core/Config/Config.php';
 require_once '/app/drupal9/web/core/lib/Drupal/Core/Config/ImmutableConfig.php';
-require_once '/app/drupal9//web/core/lib/Drupal.php';

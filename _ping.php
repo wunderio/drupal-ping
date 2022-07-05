@@ -1034,7 +1034,7 @@ class FsSchemeCreateChecker extends Checker {
    *
    * @var string
    */
-  protected $file;
+  protected $file = '';
 
   /**
    * Return the created file path.
@@ -1061,13 +1061,15 @@ class FsSchemeCreateChecker extends Checker {
 
     // Check that the files directory is operating properly.
     $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
-    if (empty($tmp)) {
+    // Use env var for testing this code branch.
+    // Cannot test it otherwise.
+    if (empty($tmp) || !empty(getenv('TESTING_FS_CREATE'))) {
       $this->setStatus('error', 'Could not create temporary file in the files directory.', [
         'path' => $path,
       ]);
       return;
-
     }
+
     $this->file = $tmp;
   }
 
