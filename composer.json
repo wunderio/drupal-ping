@@ -24,7 +24,7 @@
         "healthcheck"
     ],
     "require": {
-        "drupal/core": "^8 || ^9",
+        "drupal/core": "^8 || ^9 || ^10",
         "koodimonni/composer-dropin-installer": ">=1.0.1"
     },
     "require-dev": {
