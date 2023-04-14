@@ -1193,6 +1193,21 @@ class FsSchemeCleanupChecker extends Checker {
       if (filesize($file) !== 0) {
         continue;
       }
+
+      $mtime = filemtime($file);
+      if (!$mtime) {
+        $this->setStatus('error', 'Could not get mtime of the file in the public files directory.', [
+          'file' => $file,
+        ]);
+        return;
+      }
+
+      // Do not clean up fresh files.
+      // In the multicontainer environment parallel pings would kill each other.
+      if ($mtime > time() - 3600) {
+        continue;
+      }
+
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [

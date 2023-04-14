@@ -106,4 +106,28 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $this->assertEquals(['success', []], $status);
   }
 
+  /**
+   * @covers ::check2
+   */
+  public function testCheckMtime(): void {
+    // TODO
+    $this->assertEquals(TRUE, FALSE);
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckMtimeFresh(): void {
+    // TODO
+    $this->assertEquals(TRUE, FALSE);
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckMtimeOld(): void {
+    // TODO
+    $this->assertEquals(TRUE, FALSE);
+  }
+
 }
