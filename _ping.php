@@ -1205,10 +1205,11 @@ class FsSchemeCleanupChecker extends Checker {
 
       // Do not clean up fresh files.
       // In the multicontainer environment parallel pings would kill each other.
-      if ($mtime < time() - 3600) {
+      if ($mtime > time() - 3600) {
+        error_log(sprintf('Should continue:  %s %d %d %d', $file, $mtime, time(), ($mtime > time() - 3600)));
         continue;
       }
-      error_log(sprintf('%s %d %d', $file, $mtime, time()));
+      error_log(sprintf('After continue %s %d %d %d', $file, $mtime, time(), ($mtime > time() - 3600) ));
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [
