@@ -1069,6 +1069,27 @@ class FsSchemeCreateChecker extends Checker {
       ]);
       return;
     }
+    
+    for ($i = 0; $i < 10 && !file_exists($tmp); $i++) {
+      usleep(100000);
+    }
+    if (!file_exists($tmp)) {
+      $this->setStatus('error', 'File did not appear during 1 sec.', [
+        'path' => $path,
+      ]);
+      return;
+    }
+    
+    $mtime = filemtime($tmp);
+    $time = time();
+    if ($mtime < $time - 5) {
+         $this->setStatus('error', 'File mtime was unexpected.', [
+        'path' => $path,
+        'mtime' => $mtime,
+        'time' => $time,
+      ]);
+      return;
+    }
 
     $this->file = $tmp;
   }
@@ -1116,7 +1137,7 @@ class FsSchemeDeleteChecker extends Checker {
       $this->setStatus('disabled');
       return;
     }
-    sleep(1);
+    
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
       $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
@@ -1206,7 +1227,6 @@ class FsSchemeCleanupChecker extends Checker {
       // Do not clean up fresh files.
       // In the multicontainer environment parallel pings would kill each other.
       if ($mtime > time() - 3600) {
-        error_log(sprintf('Should continue:  %s %d %d %d', $file, $mtime, time(), ($mtime > time() - 3600)));
         continue;
       }
       error_log(sprintf('After continue %s %d %d %d', $file, $mtime, time(), ($mtime > time() - 3600) ));
