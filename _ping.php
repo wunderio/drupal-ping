@@ -1208,7 +1208,7 @@ class FsSchemeCleanupChecker extends Checker {
       if ($mtime < time() - 3600) {
         continue;
       }
-
+      error_log(sprintf('%s %d %d', $file, $mtime, time()));
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [
