@@ -31,6 +31,14 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
+### v2.5
+
+- Workarounds for NFS weirdnesses. Sometimes files appear on filesystem later then they are created. In addition sometime they have a random mtime.
+
+### v2.4
+
+- Added D10 constraint to the info file
+
 ### v2.3
 
 - Refactor error messages into JSON for easier automation
