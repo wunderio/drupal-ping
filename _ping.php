@@ -1070,6 +1070,13 @@ class FsSchemeCreateChecker extends Checker {
       return;
     }
     
+    if (!touch($tmp)) {
+       $this->setStatus('error', 'Could not touch file.', [
+        'file' => $tmp,
+      ]);
+      return;
+    }
+    
     for ($i = 0; $i < 10 && !file_exists($tmp); $i++) {
       usleep(100000);
     }
