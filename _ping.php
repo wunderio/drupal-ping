@@ -1080,17 +1080,17 @@ class FsSchemeCreateChecker extends Checker {
     // Otherwise parallel pings could steal eachothers files due to invalid mtime.
     $check_time = 1.0;
     for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {}
-    
-    if (!file_exists($tmp)) {
-      $this->setStatus('warning', "File did not appear during $check_time sec.", [
+
+    // This forces the file mtime to be time().
+    if (!touch($tmp)) {
+      $this->setStatus('warning', 'Could not touch file.', [
         'file' => $tmp,
       ]);
       return;
     }
 
-    // This forces the file mtime to be time().
-    if (!touch($tmp)) {
-      $this->setStatus('warning', 'Could not touch file.', [
+    if (!file_exists($tmp)) {
+      $this->setStatus('warning', "File did not appear during $check_time sec nor after touch.", [
         'file' => $tmp,
       ]);
       return;
