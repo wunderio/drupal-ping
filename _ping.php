@@ -1075,7 +1075,7 @@ class FsSchemeCreateChecker extends Checker {
     }
     if (!file_exists($tmp)) {
       $this->setStatus('error', 'File did not appear during 1 sec.', [
-        'path' => $path,
+        'file' => $tmp,
       ]);
       return;
     }
@@ -1084,7 +1084,7 @@ class FsSchemeCreateChecker extends Checker {
     $time = time();
     if ($mtime < $time - 5) {
          $this->setStatus('error', 'File mtime was unexpected.', [
-        'path' => $path,
+        'file' => $tmp,
         'mtime' => $mtime,
         'time' => $time,
       ]);
