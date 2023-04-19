@@ -1269,7 +1269,6 @@ class FsSchemeCleanupChecker extends Checker {
       $this->setStatus('warning', 'Orphaned fs check files deleted.', [
         'removed_count' => $removed,
       ]);
-      return;
     }
   }
 
