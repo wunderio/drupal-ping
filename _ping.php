@@ -1121,6 +1121,7 @@ class FsSchemeDeleteChecker extends Checker {
     if (!unlink($this->file)) {
       $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
         'file' => $this->file,
+        'error' => error_get_last()['message'],
       ]);
       return;
     }
