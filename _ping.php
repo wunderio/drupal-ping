@@ -1213,6 +1213,7 @@ class FsSchemeCleanupChecker extends Checker {
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [
           'file' => $file,
+          'error' => error_get_last()['message'],
         ]);
         return;
       }
