@@ -1070,16 +1070,22 @@ class FsSchemeCreateChecker extends Checker {
       return;
     }
     
+    for ($time = microtime(TRUE); microtime(TRUE) - $time < 1.0 && !file_exists($tmp); usleep(10000)) {}
+    
+    if (!file_exists($tmp)) {
+      $this->setStatus('error', 'File did not appear during 1 sec.', [
+        'file' => $tmp,
+      ]);
+      return;
+    }
+
     if (!touch($tmp)) {
-       $this->setStatus('error', 'Could not touch file.', [
+      $this->setStatus('error', 'Could not touch file.', [
         'file' => $tmp,
       ]);
       return;
     }
     
-    for ($i = 0; $i < 10 && !file_exists($tmp); $i++) {
-      usleep(100000);
-    }
     if (!file_exists($tmp)) {
       $this->setStatus('error', 'File did not appear during 1 sec.', [
         'file' => $tmp,
