@@ -1116,7 +1116,7 @@ class FsSchemeDeleteChecker extends Checker {
       $this->setStatus('disabled');
       return;
     }
-
+    sleep(1);
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
       $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
