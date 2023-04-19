@@ -1231,17 +1231,34 @@ class FsSchemeCleanupChecker extends Checker {
         continue;
       }
 
+      $time = time();
+      
       // Do not clean up fresh files.
       // In the multicontainer environment parallel pings would kill each other.
-      if ($mtime > time() - 3600) {
+      if ($mtime > $time - 3600) {
         continue;
       }
-      error_log(sprintf('After continue %s %d %d %d', $file, $mtime, time(), ($mtime > time() - 3600) ));
+      
+      if ($mtime < $time - 24 * 60 * 60) {
+         $this->setStatus('warning', 'File timestamp is older than a day.', [
+           'time' => $time,
+           'mtime' => $mtime,
+           'file' => $file,
+         ]);
+      }
+      
+      if ($mtime > $time) {
+         $this->setStatus('warning', 'File timestamp is in the future.', [
+           'time' => $time,
+           'mtime' => $mtime,
+           'file' => $file,
+         ]);
+      }
+      
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [
           'file' => $file,
-          'error' => error_get_last()['message'],
         ]);
         return;
       }
