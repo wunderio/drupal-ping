@@ -1069,9 +1069,17 @@ class FsSchemeCreateChecker extends Checker {
       ]);
       return;
     }
-    
+    $this->file = $tmp;
+
+    // The following is for NFS file creation "weirdness".
+
+    // We try to give NFS some time for file creation.
+    // Sometimes the file appears after a delay.
+    // If ping is running in multiple containers accessing the same filesystem
+    // the usleep has to be quite small
+    // Otherwise parallel pings could steal eachothers files due to invalid mtime.
     $check_time = 1.0;
-    for ($time = microtime(TRUE); microtime(TRUE) - $check_time < 1.0 && !file_exists($tmp); usleep(10000)) {}
+    for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {}
     
     if (!file_exists($tmp)) {
       $this->setStatus('warning', "File did not appear during $check_time sec.", [
@@ -1080,25 +1088,24 @@ class FsSchemeCreateChecker extends Checker {
       return;
     }
 
+    // This forces the file mtime to be time().
     if (!touch($tmp)) {
-      $this->setStatus('error', 'Could not touch file.', [
+      $this->setStatus('warning', 'Could not touch file.', [
         'file' => $tmp,
-      ]);
-      return;
-    }
-    
-    $mtime = filemtime($tmp);
-    $time = time();
-    if ($mtime < $time - 5) {
-         $this->setStatus('error', 'File mtime was unexpected.', [
-        'file' => $tmp,
-        'mtime' => $mtime,
-        'time' => $time,
       ]);
       return;
     }
 
-    $this->file = $tmp;
+    // NFS may create files with "random" mtime usually far in the past.
+    $mtime = filemtime($tmp);
+    $time = time();
+    if ($mtime < $time - 5) {
+         $this->setStatus('warning', 'File mtime was unexpected.', [
+        'file' => $tmp,
+        'mtime' => $mtime,
+        'time' => $time,
+      ]);
+    }
   }
 
 }
@@ -1149,7 +1156,6 @@ class FsSchemeDeleteChecker extends Checker {
     if (!unlink($this->file)) {
       $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
         'file' => $this->file,
-        'error' => error_get_last()['message'],
       ]);
       return;
     }
@@ -1234,11 +1240,12 @@ class FsSchemeCleanupChecker extends Checker {
       $time = time();
       
       // Do not clean up fresh files.
-      // In the multicontainer environment parallel pings would kill each other.
+      // In the multi-container environment parallel pings would kill each other.
       if ($mtime > $time - 3600) {
         continue;
       }
-      
+
+      // NFS random mtime.
       if ($mtime < $time - 24 * 60 * 60) {
          $this->setStatus('warning', 'File timestamp is older than a day.', [
            'time' => $time,
@@ -1246,7 +1253,8 @@ class FsSchemeCleanupChecker extends Checker {
            'file' => $file,
          ]);
       }
-      
+
+      // NFS random mtime.
       if ($mtime > $time) {
          $this->setStatus('warning', 'File timestamp is in the future.', [
            'time' => $time,
