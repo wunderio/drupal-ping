@@ -1199,12 +1199,12 @@ class FsSchemeCleanupChecker extends Checker {
         $this->setStatus('error', 'Could not get mtime of the file in the public files directory.', [
           'file' => $file,
         ]);
-        return;
+        continue;
       }
 
       // Do not clean up fresh files.
       // In the multicontainer environment parallel pings would kill each other.
-      if ($mtime > time() - 3600) {
+      if ($mtime < time() - 3600) {
         continue;
       }
 
