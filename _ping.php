@@ -1078,14 +1078,16 @@ class FsSchemeCreateChecker extends Checker {
     $this->file = $tmp;
 
     // The following is for NFS file creation "weirdness".
-
+    //
     // We try to give NFS some time for file creation.
     // Sometimes the file appears after a delay.
     // If ping is running in multiple containers accessing the same filesystem
     // the usleep has to be quite small
-    // Otherwise parallel pings could steal eachothers files due to invalid mtime.
+    // Otherwise parallel pings could steal eachothers files
+    // due to invalid mtime.
     $check_time = 1.0;
-    for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {}
+    for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {
+    }
 
     // Enforces file creation.
     // On NFS-based systems file creation is sometimes delayed.
@@ -1230,7 +1232,8 @@ class FsSchemeCleanupChecker extends Checker {
       }
 
       // Get file mtime, derived from filename.
-      // The timestamp is kept in the filename because NFS mtime is sometimes random.
+      // The timestamp is kept in the filename
+      // because NFS mtime is sometimes random.
       $mtime = basename($file);
       if (!preg_match('/^status_check__(\d+)__/', $mtime, $matches)) {
         // Silently clean up old status check files.
@@ -1244,15 +1247,16 @@ class FsSchemeCleanupChecker extends Checker {
       // Sanity check.
       // Allow few secs of kernel clock drift.
       if ($mtime > $time + 5) {
-         $this->setStatus('warning', 'File timestamp is in the future.', [
-           'time' => $time,
-           'mtime' => $mtime,
-           'file' => $file,
-         ]);
+        $this->setStatus('warning', 'File timestamp is in the future.', [
+          'time' => $time,
+          'mtime' => $mtime,
+          'file' => $file,
+        ]);
       }
 
       // Do not clean up fresh files.
-      // In the multi-container environment parallel pings would kill each other.
+      // In the multi-container environment
+      // parallel pings would kill each other.
       if ($mtime > $time - 3600) {
         continue;
       }
