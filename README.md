@@ -31,6 +31,10 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
+### v2.6
+
+- Instead of using `mtime` for file checks, store the timestamp into filename. It is a workaround for the NFS `mtime` issue.
+
 ### v2.5
 
 - Workarounds for NFS weirdnesses. Sometimes files appear on filesystem later then they are created. In addition sometime they have a random mtime.
