@@ -1059,8 +1059,14 @@ class FsSchemeCreateChecker extends Checker {
     // Get the real path of the files uri.
     $path = \Drupal::service('file_system')->realpath($scheme . '://');
 
+    // Need to inject the timestamp into filename,
+    // much like ICMP ping injects timestamp into 'an echo request'.
+    // Because on NFS-based systems mtime sometimes is random
+    // from the perspective of the file creator.
+    $prefix = sprintf('status_check__%d__', time());
+
     // Check that the files directory is operating properly.
-    $tmp = \Drupal::service('file_system')->tempnam($path, 'status_check_');
+    $tmp = \Drupal::service('file_system')->tempnam($path, $prefix);
     // Use env var for testing this code branch.
     // Cannot test it otherwise.
     if (empty($tmp) || !empty(getenv('TESTING_FS_CREATE'))) {
@@ -1072,16 +1078,20 @@ class FsSchemeCreateChecker extends Checker {
     $this->file = $tmp;
 
     // The following is for NFS file creation "weirdness".
-
+    //
     // We try to give NFS some time for file creation.
     // Sometimes the file appears after a delay.
     // If ping is running in multiple containers accessing the same filesystem
     // the usleep has to be quite small
-    // Otherwise parallel pings could steal eachothers files due to invalid mtime.
+    // Otherwise parallel pings could steal eachothers files
+    // due to invalid mtime.
     $check_time = 1.0;
-    for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {}
+    for ($time = microtime(TRUE); microtime(TRUE) - $time < $check_time && !file_exists($tmp); usleep(10000)) {
+    }
 
-    // This forces the file mtime to be time().
+    // Enforces file creation.
+    // On NFS-based systems file creation is sometimes delayed.
+    // This seems to speed up things.
     if (!touch($tmp)) {
       $this->setStatus('warning', 'Could not touch file.', [
         'file' => $tmp,
@@ -1090,21 +1100,10 @@ class FsSchemeCreateChecker extends Checker {
     }
 
     if (!file_exists($tmp)) {
-      $this->setStatus('warning', "File did not appear during $check_time sec nor after touch.", [
+      $this->setStatus('warning', "File did not appear during $check_time sec nor after touch().", [
         'file' => $tmp,
       ]);
       return;
-    }
-
-    // NFS may create files with "random" mtime usually far in the past.
-    $mtime = filemtime($tmp);
-    $time = time();
-    if ($mtime < $time - 5) {
-         $this->setStatus('warning', 'File mtime was unexpected.', [
-        'file' => $tmp,
-        'mtime' => $mtime,
-        'time' => $time,
-      ]);
     }
   }
 
@@ -1151,7 +1150,7 @@ class FsSchemeDeleteChecker extends Checker {
       $this->setStatus('disabled');
       return;
     }
-    
+
     // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
     if (!unlink($this->file)) {
       $this->setStatus('error', 'Could not delete newly created file in the files directory.', [
@@ -1211,6 +1210,7 @@ class FsSchemeCleanupChecker extends Checker {
    */
   protected function check2(): void {
 
+    // Use old format for the pattern to clean up files with old filenames too.
     $pattern = "{$this->path}/status_check_*";
     $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
     if ($files === FALSE) {
@@ -1222,47 +1222,45 @@ class FsSchemeCleanupChecker extends Checker {
 
     $removed = 0;
     foreach ($files as $file) {
+
       if (!is_file($file)) {
         continue;
       }
+
       if (filesize($file) !== 0) {
         continue;
       }
 
-      $mtime = filemtime($file);
-      if (!$mtime) {
-        $this->setStatus('error', 'Could not get mtime of the file in the public files directory.', [
-          'file' => $file,
-        ]);
+      // Get file mtime, derived from filename.
+      // The timestamp is kept in the filename
+      // because NFS mtime is sometimes random.
+      $mtime = basename($file);
+      if (!preg_match('/^status_check__(\d+)__/', $mtime, $matches)) {
+        // Silently clean up old status check files.
+        unlink($file);
         continue;
       }
+      $mtime = (int) $matches[1];
 
       $time = time();
-      
+
+      // Sanity check.
+      // Allow few secs of kernel clock drift.
+      if ($mtime > $time + 5) {
+        $this->setStatus('warning', 'File timestamp is in the future.', [
+          'time' => $time,
+          'mtime' => $mtime,
+          'file' => $file,
+        ]);
+      }
+
       // Do not clean up fresh files.
-      // In the multi-container environment parallel pings would kill each other.
+      // In the multi-container environment
+      // parallel pings would kill each other.
       if ($mtime > $time - 3600) {
         continue;
       }
 
-      // NFS random mtime.
-      if ($mtime < $time - 24 * 60 * 60) {
-         $this->setStatus('warning', 'File timestamp is older than a day.', [
-           'time' => $time,
-           'mtime' => $mtime,
-           'file' => $file,
-         ]);
-      }
-
-      // NFS random mtime.
-      if ($mtime > $time) {
-         $this->setStatus('warning', 'File timestamp is in the future.', [
-           'time' => $time,
-           'mtime' => $mtime,
-           'file' => $file,
-         ]);
-      }
-      
       // @codingStandardsIgnoreLine PHPCS_SecurityAudit.BadFunctions.FilesystemFunctions.WarnFilesystem
       if (!unlink($file)) {
         $this->setStatus('error', 'Could not delete file in the public files directory.', [
