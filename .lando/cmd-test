@@ -1,9 +1,10 @@
 #!/bin/bash
 
 set -euo pipefail
-export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/app/drupal/vendor/bin
 
-cd /app
+cd /app/drupal
 
 set -x
-php -d memory_limit=-1 /app/vendor/bin/phpunit
+
+php -d memory_limit=-1 /app/drupal/vendor/bin/phpunit /app/drupal-ping/tests

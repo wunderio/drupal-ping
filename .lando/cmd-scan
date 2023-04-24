@@ -1,14 +1,14 @@
 #!/bin/bash
 
 set -euo pipefail
-export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/app/vendor/bin
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/app/drupal/vendor/bin
 
-cd /app
+# Due to autoloader issues need to run the scan on linked _ping.php in drupal webroot.
+cd /app/drupal/web
 
 set -x
 
 php -l _ping.php
-php -l settings.php
-phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php settings.php
-phpstan analyze --level=5 --autoload-file scan-autoload.php -- _ping.php settings.php
-psalm
+phpcs -sp --report=full --runtime-set testVersion 7.4 --standard=Drupal,DrupalPractice,Security,PHPCompatibility,VariableAnalysis,WunderDrupal,WunderSecurity _ping.php
+phpstan analyze --level=5 -- _ping.php
+psalm --config=/app/drupal-ping/psalm.xml
