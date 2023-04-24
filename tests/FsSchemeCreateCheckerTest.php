@@ -11,6 +11,17 @@ class FsSchemeCreateCheckerTest extends TestCase {
     require_once 'init.php';
   }
 
+  protected function setUp(): void {
+    // Clean up check files
+    $pattern = "/app/drupal/web/sites/default/files/status_check__*__*";
+    $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
+    foreach ($files as $file) {
+      unlink($file);
+    }
+
+    putenv('TESTING_FS_CREATE');
+  }
+
   /**
    * @covers ::check2
    * @covers ::getFile
@@ -22,6 +33,9 @@ class FsSchemeCreateCheckerTest extends TestCase {
     $this->assertEquals(['success', []], $status);
     $file = $c->getFile();
     $this->assertFileExists($file);
+
+    $base = basename($file);
+    $this->assertMatchesRegularExpression('/^status_check__\d+__[a-zA-Z0-9]+$/', $base);
   }
 
   /**

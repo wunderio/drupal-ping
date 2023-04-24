@@ -9,9 +9,11 @@ class FsSchemeCleanupCheckerTest extends TestCase {
 
   public static function setUpBeforeClass(): void {
     require_once 'init.php';
+  }
 
+  protected function setUp(): void {
     // Clean up check files
-    $pattern = "/app/drupal/web/sites/default/files/status_check__*__*";
+    $pattern = "/app/drupal/web/sites/default/files/status_check_*";
     $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
     foreach ($files as $file) {
       unlink($file);
@@ -75,6 +77,34 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     $status = $c->getStatusInfo();
     $data = [];
     $this->assertEquals(['success', $data], $status);
+    $this->assertFileExists($file);
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckDrift(): void {
+
+    // Make sure it is clean.
+    $c = new FsSchemeCleanupChecker();
+    $c->check();
+
+    $scheme = \Drupal::config('system.file')->get('default_scheme');
+    $path = \Drupal::service('file_system')->realpath($scheme . '://');
+    $file = sprintf('status_check__%d__', (time() + 5 + 1));
+    $file = tempnam($path, $file);
+    $c = new FsSchemeCleanupChecker();
+    $c->check();
+    $status = $c->getStatusInfo();
+    $data = [
+      'message' => 'File timestamp is in the future.',
+      'file' => $file,
+    ];
+    $delta = $status[1]['mtime'] - $status[1]['time'];
+    unset($status[1]['mtime']);
+    unset($status[1]['time']);
+    $this->assertGreaterThan(5, $delta);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**

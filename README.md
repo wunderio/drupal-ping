@@ -173,6 +173,7 @@ If earlier fails (is empty), then next one is tried.
 1. Clone the ping project itself
   * `git clone git@github.com:wunderio/drupal-ping.git`
   * Yes, save it as `drupal-ping` too, inside the folder of the same name. It is the actual repo we are going to work with.
+  * Checkout or create your development branch.
 1. Link `.lando.yml`
   * `rm -f .lando.yml` - at the top-level folder, remove the Lando conf file.
   * `ln drupal-ping/.lando.yml` - link the Lando conf from the ping repo folder. Don't create this as a soft (`-s`) link because Lando would mount the project where the original file is. Therefore create the hard link which is indistinguishable for Lando.
@@ -182,6 +183,8 @@ If earlier fails (is empty), then next one is tried.
 1. `lando start`
 1. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
 1. https://ping.lndo.site/_ping.php
+1. `lando scan`
+1. `lando test`
 
 ### Development commands
 
