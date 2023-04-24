@@ -35,7 +35,7 @@ class FsSchemeCreateCheckerTest extends TestCase {
     $status = $c->getStatusInfo();
     $this->assertEquals(['error', [
       'message' => 'Could not create temporary file in the files directory.',
-      'path' => '/app/drupal9/web/sites/default/files',
+      'path' => '/app/drupal/web/sites/default/files',
     ]], $status);
   }
 

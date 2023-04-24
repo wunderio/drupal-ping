@@ -9,6 +9,13 @@ class FsSchemeCleanupCheckerTest extends TestCase {
 
   public static function setUpBeforeClass(): void {
     require_once 'init.php';
+
+    // Clean up check files
+    $pattern = "/app/drupal/web/sites/default/files/status_check__*__*";
+    $files = glob($pattern, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOSORT);
+    foreach ($files as $file) {
+      unlink($file);
+    }
   }
 
   /**
@@ -30,7 +37,7 @@ class FsSchemeCleanupCheckerTest extends TestCase {
   /**
    * @covers ::check2
    */
-  public function testCheckWarning(): void {
+  public function testCheckOld(): void {
 
     // Make sure it is clean.
     $c = new FsSchemeCleanupChecker();
@@ -38,7 +45,8 @@ class FsSchemeCleanupCheckerTest extends TestCase {
 
     $scheme = \Drupal::config('system.file')->get('default_scheme');
     $path = \Drupal::service('file_system')->realpath($scheme . '://');
-    $file = tempnam($path, 'status_check_');
+    $file = sprintf('status_check__%d__', (time() - 1 * 60 * 60));
+    $file = tempnam($path, $file);
     $c = new FsSchemeCleanupChecker();
     $c->check();
     $status = $c->getStatusInfo();
@@ -47,6 +55,26 @@ class FsSchemeCleanupCheckerTest extends TestCase {
       'removed_count' => 1
     ];
     $this->assertEquals(['warning', $data], $status);
+  }
+
+  /**
+   * @covers ::check2
+   */
+  public function testCheckNew(): void {
+
+    // Make sure it is clean.
+    $c = new FsSchemeCleanupChecker();
+    $c->check();
+
+    $scheme = \Drupal::config('system.file')->get('default_scheme');
+    $path = \Drupal::service('file_system')->realpath($scheme . '://');
+    $file = sprintf('status_check__%d__', time());
+    $file = tempnam($path, $file);
+    $c = new FsSchemeCleanupChecker();
+    $c->check();
+    $status = $c->getStatusInfo();
+    $data = [];
+    $this->assertEquals(['success', $data], $status);
   }
 
   /**
@@ -104,30 +132,6 @@ class FsSchemeCleanupCheckerTest extends TestCase {
     unlink($file);
     $status = $c->getStatusInfo();
     $this->assertEquals(['success', []], $status);
-  }
-
-  /**
-   * @covers ::check2
-   */
-  public function testCheckMtime(): void {
-    // TODO
-    $this->assertEquals(TRUE, FALSE);
-  }
-
-  /**
-   * @covers ::check2
-   */
-  public function testCheckMtimeFresh(): void {
-    // TODO
-    $this->assertEquals(TRUE, FALSE);
-  }
-
-  /**
-   * @covers ::check2
-   */
-  public function testCheckMtimeOld(): void {
-    // TODO
-    $this->assertEquals(TRUE, FALSE);
   }
 
 }
