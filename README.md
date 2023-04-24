@@ -31,6 +31,13 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
+### v2.5.2
+
+- Remove testfile existence checking. It was fixed with keeping `mtime` in the filename.
+- README: Refactor development and testing documentation
+- Update tests
+- Refactor testing environment
+
 ### v2.5.1
 
 - Instead of using `mtime` for file checks, store the timestamp into filename. It is a workaround for the NFS `mtime` issue.
