@@ -14,7 +14,7 @@ if (empty($databases)) {
 }
 
 // DB.
-$db = json_decode(getenv('LANDO_INFO'))->mariadb;
+$db = json_decode(getenv('LANDO_INFO'))->database;
 $databases['default']['default'] = [
   'database' => $db->creds->database,
   'username' => $db->creds->user,

@@ -31,6 +31,13 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
+### v2.5.2
+
+- Remove testfile existence checking. It was fixed with keeping `mtime` in the filename.
+- README: Refactor development and testing documentation
+- Update tests
+- Refactor testing environment
+
 ### v2.5.1
 
 - Instead of using `mtime` for file checks, store the timestamp into filename. It is a workaround for the NFS `mtime` issue.
@@ -164,19 +171,38 @@ If earlier fails (is empty), then next one is tried.
 
 ## Ping Development & Testing
 
-- `lando install` - Install dev dependencies without Drupal
-- `lando start` - Install basic Drupal and services
+### Setting up development environment
+
+1. Clone development and testing environment
+  * `git clone git@github.com:wunderio/drupal-project.git ~/projects/drupal-ping`
+  * Yes, save it as `drupal-ping`.
+1. `cd drupal-ping/`
+1. Clone the ping project itself
+  * `git clone git@github.com:wunderio/drupal-ping.git`
+  * Yes, save it as `drupal-ping` too, inside the folder of the same name. It is the actual repo we are going to work with.
+  * Checkout or create your development branch.
+1. Link `.lando.yml`
+  * `rm -f .lando.yml` - at the top-level folder, remove the Lando conf file.
+  * `ln drupal-ping/.lando.yml` - link the Lando conf from the ping repo folder. Don't create this as a soft (`-s`) link because Lando would mount the project where the original file is. Therefore create the hard link which is indistinguishable for Lando.
+1. Link `.lando/`
+  * `rm -rf .lando` - at the top-level folder, remove the Lando folder.
+  * `ln -s drupal-ping/.lando` - link the Lando scripts folder from the ping repo folder.
+1. `lando start`
+1. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
+1. https://ping.lndo.site/_ping.php
+1. `lando scan`
+1. `lando test`
+
+### Development commands
+
 - `lando test` - Execute phpunit tests
 - `lando scan` - Run coding standard checks
-
-Note: the Lando setup is defined so that D7 and D89 branched can be easily switched
-both running their own own setup. Drupal and composer installations wont clash.
-They have separate dirs.
 
 ## Maintainers
 
 - [Janne Koponen](https://github.com/tharna)
 - [Ragnar Kurm](https://github.com/ragnarkurmwunder)
+- [Juhani Moilanen](https://github.com/Juhani-moilanen)
 
 ## License
 

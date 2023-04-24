@@ -1,9 +1,8 @@
 name: ping
+recipe: drupal9
 
 services:
   appserver:
-    type: php:7.4
-    webroot: drupal9/web
     build_as_root:
       - /app/.lando/build_as_root
     build:
@@ -12,8 +11,6 @@ services:
       - /app/.lando/run_as_root
     run:
       - /app/.lando/run
-  mariadb:
-    type: mariadb:10.6
   memcached:
     type: memcached:1.5.12
   redis:
@@ -37,10 +34,15 @@ services:
   # solr
   # varnish
 
+config:
+  php: "8.1"
+  via: nginx
+  webroot: drupal/web
+  database: "mariadb:10.6"
+  composer_version: 2
+  xdebug: off
+
 tooling:
-  install:
-    service: appserver
-    cmd: /app/.lando/cmd-install
   test:
     service: appserver
     cmd: /app/.lando/cmd-test

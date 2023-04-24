@@ -18,6 +18,8 @@ class AppTest extends TestCase {
         putenv($key);
       }
     }
+    putenv("PING_TOKEN");
+    unset($_GET['debug']);
   }
 
   /**
