@@ -709,7 +709,7 @@ class MemcacheChecker extends Checker {
 
       // We are not relying on Memcache or Memcached classes.
       // For speed and simplicity we use just basic networking.
-      $socket = fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
+      $socket = @fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
       if (!empty($errstr)) {
         $msgs[] = [
           'host' => $s['host'],
@@ -750,7 +750,7 @@ class MemcacheChecker extends Checker {
     }
 
     if ($good_count < 1 && $bad_count > 0) {
-      $this->setStatus('error', 'Connection errors.', ['errors' => $msgs]);
+      $this->setStatus('warning', 'Connection errors.', ['errors' => $msgs]);
       return;
     }
 
