@@ -746,15 +746,18 @@ class MemcacheChecker extends Checker {
 
     if ($good_count > 0 && $bad_count > 0) {
       $this->setStatus('warning', 'Connection warnings.', ['warnings' => $msgs]);
+      \Drupal::logger('drupal_ping')->warning('Memcache connection warning. Warning messages: @warnings', ['@warnings' => json_encode($msgs)]);
       return;
     }
 
     if ($good_count < 1 && $bad_count > 0) {
       $this->setStatus('warning', 'Connection errors.', ['errors' => $msgs]);
+      \Drupal::logger('drupal_ping')->error('Memcache connection error. Error messages: @errors', ['@errors' => json_encode($msgs)]);
       return;
     }
 
-    $this->setStatus('error', 'Internal error.');
+    \Drupal::logger('drupal_ping')->error('Memcache internal error.');
+    $this->setStatus('warning', 'Internal error.');
   }
 
 }
