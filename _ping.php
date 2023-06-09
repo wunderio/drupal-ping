@@ -151,7 +151,7 @@ TXT;
     $profiling_tbl = $this->profile->getTextTable(PHP_EOL);
     print <<<TXT
 
-<pre>
+<pre style="color:red">
 $buffered_output
 </pre>
 
