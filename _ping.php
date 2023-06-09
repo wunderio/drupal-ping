@@ -52,6 +52,10 @@ class App {
      * Setup
      */
 
+    // Start output buffering as any PHP notice would return 503 error code
+    // if printed before setting headers.
+    ob_start();
+
     // Start profiling as early as possible.
     $this->profile = new Profile();
     $this->status = new Status();
@@ -111,6 +115,11 @@ class App {
     $payloads = $this->status2logs($payloads, 'error');
     $this->logErrors($payloads, 'error');
 
+    // Stop buffering before setting headers. After that it doesn't matter
+    // if there's any output as script is not going to give 503 error code
+    // anymore.
+    $buffered_output = ob_get_clean();
+
     if (!empty($payloads)) {
       $code = 500;
       $msg = 'INTERNAL ERROR';
@@ -141,6 +150,10 @@ TXT;
     $status_tbl = $this->status->getTextTable(PHP_EOL);
     $profiling_tbl = $this->profile->getTextTable(PHP_EOL);
     print <<<TXT
+
+<pre>
+$buffered_output
+</pre>
 
 <pre>
 $status_tbl
