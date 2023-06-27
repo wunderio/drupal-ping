@@ -52,6 +52,10 @@ class App {
      * Setup
      */
 
+    // Start output buffering as any PHP notice would return 503 error code
+    // if printed before setting headers.
+    ob_start();
+
     // Start profiling as early as possible.
     $this->profile = new Profile();
     $this->status = new Status();
@@ -101,15 +105,20 @@ class App {
 
     $slows = $this->profile->getByDuration(1000, NULL);
     $payloads = $this->profile2logs($slows, 'slow');
-    $this->logErrors($payloads);
+    $this->logErrors($payloads, 'notice');
 
     $payloads = $this->status->getBySeverity('warning');
     $payloads = $this->status2logs($payloads, 'warning');
-    $this->logErrors($payloads);
+    $this->logErrors($payloads, 'warning');
 
     $payloads = $this->status->getBySeverity('error');
     $payloads = $this->status2logs($payloads, 'error');
-    $this->logErrors($payloads);
+    $this->logErrors($payloads, 'error');
+
+    // Stop buffering before setting headers. After that it doesn't matter
+    // if there's any output as script is not going to give 503 error code
+    // anymore.
+    $buffered_output = ob_get_clean();
 
     if (!empty($payloads)) {
       $code = 500;
@@ -141,6 +150,10 @@ TXT;
     $status_tbl = $this->status->getTextTable(PHP_EOL);
     $profiling_tbl = $this->profile->getTextTable(PHP_EOL);
     print <<<TXT
+
+<pre style="color:red">
+$buffered_output
+</pre>
 
 <pre>
 $status_tbl
@@ -279,14 +292,17 @@ TXT;
    * Log errors according to the environment.
    *
    * We recognize following envs:
+   * - drupal -> Drupal logger.
    * - silta -> stderr.
    * - lando -> stderr.
    * - the rest -> syslog().
    *
    * @param array $payloads
    *   Array of payload arrays, containing error message and additional info.
+   * @param string $severity
+   *   The severity of Drupal logger (method name).
    */
-  public function logErrors(array $payloads): void {
+  public function logErrors(array $payloads, string $severity): void {
 
     if (!empty(getenv('TESTING'))) {
       $logger = function (string $msg) {
@@ -297,20 +313,32 @@ TXT;
         $_logs[] = $msg;
       };
     }
+    elseif (method_exists('\Drupal', 'logger')) {
+      $logger = function (string $msg) use ($severity) {
+        try {
+          // Replace curly braces with double parentheses because Drupal logging
+          // is unable to handle JSON.
+          $msg = str_replace(['{', '}'], ['((', '))'], $msg);
+          \Drupal::logger('drupal_ping')->{$severity}($msg);
+        }
+        catch (\Exception $e) {
+        }
+      };
+    }
     elseif (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
       $logger = function (string $msg) {
-        error_log($msg);
+        error_log("ping: $msg");
       };
     }
     else {
       $logger = function (string $msg) {
-        syslog(LOG_ERR | LOG_LOCAL6, $msg);
+        syslog(LOG_ERR | LOG_LOCAL6, "ping: $msg");
       };
     }
 
     foreach ($payloads as $payload) {
       $payload = json_encode($payload);
-      $logger("ping: $payload");
+      $logger($payload);
     }
   }
 
@@ -709,7 +737,7 @@ class MemcacheChecker extends Checker {
 
       // We are not relying on Memcache or Memcached classes.
       // For speed and simplicity we use just basic networking.
-      $socket = fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
+      $socket = @fsockopen($s['host'], $s['port'], $errno, $errstr, 1);
       if (!empty($errstr)) {
         $msgs[] = [
           'host' => $s['host'],
@@ -750,7 +778,7 @@ class MemcacheChecker extends Checker {
     }
 
     if ($good_count < 1 && $bad_count > 0) {
-      $this->setStatus('error', 'Connection errors.', ['errors' => $msgs]);
+      $this->setStatus('warning', 'Connection errors.', ['errors' => $msgs]);
       return;
     }
 

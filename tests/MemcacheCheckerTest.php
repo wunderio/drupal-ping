@@ -108,7 +108,7 @@ class MemcacheCheckerTest extends TestCase {
         'error' => 'Connection refused',
       ]],
     ];
-    $this->assertEquals(['error', $data], $status);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -133,7 +133,7 @@ class MemcacheCheckerTest extends TestCase {
         'error' => 'Cannot assign requested address',
       ]],
     ];
-    $this->assertEquals(['error', $data], $status);
+    $this->assertEquals(['warning', $data], $status);
   }
 
   /**
@@ -227,7 +227,7 @@ class MemcacheCheckerTest extends TestCase {
         ],
       ],
     ];
-    $this->assertEquals(['error', $data], $status);
+    $this->assertEquals(['warning', $data], $status);
   }
 
 }

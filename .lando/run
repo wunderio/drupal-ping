@@ -10,7 +10,7 @@ export PATH="$PATH:/app/drupal/vendor/bin"
 cd "/app/drupal"
 
 set +e
-drush status bootstrap | grep -q Successful
+drush status | grep -q -e 'Drupal bootstrap *: *Successful'
 status="$?"
 set -e
 if [[ "$status" -ne 0 ]]; then
