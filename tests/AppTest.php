@@ -41,10 +41,10 @@ class AppTest extends TestCase {
     $a->logErrors([
       ['check1' => 'msg1'],
       ['check2' => 'msg2'],
-    ]);
+    ], 'notice');
     $expected = [
-      'ping: {"check1":"msg1"}',
-      'ping: {"check2":"msg2"}',
+      '{"check1":"msg1"}',
+      '{"check2":"msg2"}',
     ];
     $this->assertEquals($expected, $_logs);
   }

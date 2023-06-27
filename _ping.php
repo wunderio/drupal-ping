@@ -320,7 +320,9 @@ TXT;
           // is unable to handle JSON.
           $msg = str_replace(['{', '}'], ['((', '))'], $msg);
           \Drupal::logger('drupal_ping')->{$severity}($msg);
-        } catch(\Exception $e) { }
+        }
+        catch (\Exception $e) {
+        }
       };
     }
     elseif (!empty(getenv('SILTA_CLUSTER')) || !empty(getenv('LANDO'))) {
