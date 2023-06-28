@@ -180,8 +180,6 @@ If earlier fails (is empty), then next one is tried.
 1. Start Lando `lando start`
 1. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
 1. https://ping.lndo.site/_ping.php
-1. `lando scan`
-1. `lando test`
 
 ### Development commands
 
