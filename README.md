@@ -173,13 +173,13 @@ If earlier fails (is empty), then next one is tried.
 
 ### Setting up development environment
 
-1. Clone the ping project
+1. Clone the ping project and cd into it
  `git clone git@github.com:wunderio/drupal-ping.git`
-1. `cd drupal-ping/`
-1. Checkout or create your development branch.
-1. Start Lando `lando start`
-1. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
-1. https://ping.lndo.site/_ping.php
+2. Change into the drupal-ping folder `cd drupal-ping/`
+3. Checkout or create your development branch.
+4. Start Lando `lando start`
+5. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
+6. https://ping.lndo.site/_ping.php
 
 ### Development commands
 
