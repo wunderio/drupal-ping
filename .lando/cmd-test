@@ -7,4 +7,4 @@ cd /app/drupal
 
 set -x
 
-php -d memory_limit=-1 /app/drupal/vendor/bin/phpunit /app/drupal-ping/tests
+php -d memory_limit=-1 /app/drupal/vendor/bin/phpunit /app/tests

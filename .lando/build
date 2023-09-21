@@ -11,7 +11,6 @@ proj="$app/drupal"
 webroot="$proj/web"
 sites="$webroot/sites"
 default="$sites/default"
-pingroot="$app/drupal-ping"
 
 set +e
 rm -rf "$proj"
@@ -26,12 +25,16 @@ composer create-project drupal/recommended-project "$proj"
 
 chmod 755 "$default"
 rm -f "$default/settings.php"
-ln -s "$pingroot/settings.php" "$default/"
-ln -s "$pingroot/_ping.custom.php" "$webroot/"
-ln -s "$pingroot/_ping.php" "$webroot/"
-chmod 644 "$pingroot/settings.php"
+ln -s "$app/settings.php" "$default/"
+ln -s "$app/_ping.custom.php" "$webroot/"
+ln -s "$app/_ping.php" "$webroot/"
+chmod 644 "$app/settings.php"
 
 cd "$proj"
 composer require --dev drush/drush
-composer require 'wunderio/code-quality:^2' --dev
+# @todo: Lock Code Quality atm because phpstan is failing.
+# It's related to installing https://github.com/phpstan/extension-installer in Code Quality 2.4.0. Because it now loads
+# phpstan extensions automatically, it starts do more scans with extensions like like mglaman/phpstan-drupal and
+# phpstan/phpstan-deprecation-rules.
+composer require 'wunderio/code-quality:2.3.0' --dev
 composer require 'phpunit/phpunit:^9' --dev

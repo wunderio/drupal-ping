@@ -134,25 +134,13 @@ If earlier fails (is empty), then next one is tried.
 
 ### Setting up development environment
 
-1. Clone development and testing environment
-  * `git clone git@github.com:wunderio/drupal-project.git ~/projects/drupal-ping`
-  * Yes, save it as `drupal-ping`.
-1. `cd drupal-ping/`
-1. Clone the ping project itself
-  * `git clone git@github.com:wunderio/drupal-ping.git`
-  * Yes, save it as `drupal-ping` too, inside the folder of the same name. It is the actual repo we are going to work with.
-  * Checkout or create your development branch.
-1. Link `.lando.yml`
-  * `rm -f .lando.yml` - at the top-level folder, remove the Lando conf file.
-  * `ln drupal-ping/.lando.yml` - link the Lando conf from the ping repo folder. Don't create this as a soft (`-s`) link because Lando would mount the project where the original file is. Therefore create the hard link which is indistinguishable for Lando.
-1. Link `.lando/`
-  * `rm -rf .lando` - at the top-level folder, remove the Lando folder.
-  * `ln -s drupal-ping/.lando` - link the Lando scripts folder from the ping repo folder.
-1. `lando start`
-1. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
-1. https://ping.lndo.site/_ping.php
-1. `lando scan`
-1. `lando test`
+1. Clone the ping project and cd into it
+ `git clone git@github.com:wunderio/drupal-ping.git`
+2. Change into the drupal-ping folder `cd drupal-ping/`
+3. Checkout or create your development branch.
+4. Start Lando `lando start`
+5. Note that the Drupal install will mess up `settings.php` a bit, don't commit.
+6. https://ping.lndo.site/_ping.php
 
 ### Development commands
 
