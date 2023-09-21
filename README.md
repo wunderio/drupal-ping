@@ -31,46 +31,7 @@ composer require wunderio/drupal-ping:^2
 
 ## Changelog
 
-### v2.5.2
-
-- Remove testfile existence checking. It was fixed with keeping `mtime` in the filename.
-- README: Refactor development and testing documentation
-- Update tests
-- Refactor testing environment
-
-### v2.5.1
-
-- Instead of using `mtime` for file checks, store the timestamp into filename. It is a workaround for the NFS `mtime` issue.
-
-### v2.5
-
-- Workarounds for NFS weirdnesses. Sometimes files appear on filesystem later then they are created. In addition sometime they have a random mtime.
-
-### v2.4
-
-- Added D10 constraint to the info file
-
-### v2.3
-
-- Refactor error messages into JSON for easier automation
-- Refactor debug token generation
-
-### v2.2
-
-- Add Public filesystem Cleanup checker
-
-### v2.1
-
-- Refactor code into Classes
-- Add comprehensive test coverage
-- Fix coding standard issues
-
-### v2.0
-
-Breaking Changes!
-
-- `composer.json`: `extra`: `dropin-paths` has a new syntax!
-- `settings.php`: Elasticsearch has additional syntax for testing. See below.
+See [Releases](https://github.com/wunderio/drupal-ping/releases).
 
 ## Usage
 
