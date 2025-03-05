@@ -16,28 +16,24 @@
             "email": "ragnar.kurm@wunder.io",
             "homepage": "https://github.com/ragnarkurmwunder",
             "role": "Developer"
-        },
-        {
-            "name": "Juhani Moilanen",
-            "email": "juhani.moilanen@wunder.io",
-            "homepage": "https://github.com/Juhani-moilanen",
-            "role": "Developer"
         }
     ],
     "keywords": [
         "drupal",
-        "ping",
-        "healthcheck"
+        "healthcheck",
+        "ping"
     ],
     "require": {
-        "drupal/core": "^8 || ^9 || ^10",
-        "koodimonni/composer-dropin-installer": ">=1.0.1"
+        "composer/composer": "^2",
+        "drupal/core": "^8 || ^9 || ^10 || ^11",
+        "koodimonni/composer-dropin-installer": "^1"
     },
     "config": {
         "allow-plugins": {
-            "koodimonni/composer-dropin-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
+            "koodimonni/composer-dropin-installer": true,
             "phpro/grumphp": true
         }
-    }
+    },
+    "version": "2.5.5"
 }

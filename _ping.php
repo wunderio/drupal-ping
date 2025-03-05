@@ -4,7 +4,6 @@
  * @file
  * The Ping Utility.
  *
- * FOR DRUPAL 8 OR 9 ONLY !
  * FILE IS SUPPOSED TO BE IN DRUPAL ROOT DIRECTORY (NEXT TO INDEX.PHP) !!
  */
 
